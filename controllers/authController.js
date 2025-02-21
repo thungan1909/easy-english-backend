@@ -26,14 +26,13 @@ const authController = {
         }
     },
 
-    checkExistUsername: async (req, res) => {
-        console.log("checkExistUsername called"); // Log when the function is called
-
+    checkExistEmail: async (req, res) => {
+        console.log("checkExistEmail")
         try {
-            console.log("Request Body:", req.body); // Log the request body
-            const { username } = req.body;
-            const checkUsername = await User.findOne({ username });
-            return res.status(200).json({ exists: !!checkUsername });
+            const { email } = req.body;
+            const checkEmail = await User.findOne({ email });
+
+            return res.status(200).json({ exists: !!checkEmail });
         } catch (err) {
             console.error("Error checking username:", err);
             res.status(500).json({ message: "Internal Server Error" });
