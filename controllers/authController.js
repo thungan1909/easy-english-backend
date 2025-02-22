@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
+const req = require("express/lib/request");
 const jwt = require("jsonwebtoken");
 
 const authController = {
@@ -10,24 +11,49 @@ const authController = {
             const checkUsername = await User.findOne({ username });
             if (checkUsername) return res.status(400).json("This username is already taken");
 
-            const checkEmail = await User.findOne({ email });
-            if (checkEmail) return res.status(400).json("This email is already taken");
-
             const salt = await bcrypt.genSalt(10);
             const hashed = await bcrypt.hash(password, salt);
 
-            const newUser = new User({ username, email, password: hashed });
+            // Generate a verification code (6-digit random number)
+            const verificationCode = crypto.randomInt(100000, 999999).toString();
+
+            // Create a new user
+            const newUser = new User({ username, email, password: hashed, verificationCode });
             const savedUser = await newUser.save();
 
-            res.status(201).json(savedUser);
+            await sendVericationEmail(email, verificationCode)
+            res.status(201).json({ message: "User registered successfully. Please check your email for verification code.", savedUser });
         } catch (err) {
-            console.error("Login Error:", err);
+            console.error("Registration Error:", err);
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
 
+    sendVericationEmail: async (email, code) => {
+        try {
+            const transporter = nodemailer.createTransport({
+                service: "gmail",
+                auth: {
+                    user: "dtn19092001@gmail.com",
+                    pass: "password"
+                },
+            });
+
+            const mailOptions = {
+                from: "email@gmail.com",
+                to: email,
+                subject: "Email Verification Code",
+                text: `Your verification code is: ${code}`,
+            };
+
+            await transporter.sendMail(mailOptions);
+            console.log("Verification email sent successfully.");
+        } catch (error) {
+            console.error("Error sending email", error)
+        }
+    },
+
     checkExistEmail: async (req, res) => {
-        console.log("checkExistEmail")
         try {
             const { email } = req.body;
             const checkEmail = await User.findOne({ email });
