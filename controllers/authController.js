@@ -47,7 +47,7 @@ const authController = {
             const { username, email, password } = req.body;
 
             const checkUsername = await User.findOne({ username });
-            if (checkUsername) return res.status(400).json("This username is already taken");
+            if (checkUsername) return res.status(400).json({ message: "This username is already taken" });
 
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
@@ -62,10 +62,8 @@ const authController = {
 
             // Create a new user
             const newUser = new User({ username, email, password: hashedPassword, verificationCode: hashedVerificationCode, verificationExpires: expiresAt });
-            console.log("new USER", newUser)
             await newUser.save();
 
-            // await authController.sendVerificationEmail(email, verificationCode)
             res.status(201).json({
                 message: "User registered successfully. Please check your email for verification code.",
                 userId: newUser._id
@@ -76,9 +74,35 @@ const authController = {
         }
     },
 
+    verificationUser: async (req, res) => {
+        try {
+            const { email, verifyCode } = req.body;
+            const user = await User.findOne({ email });
+            console.log("user==", user)
+            if (!user) return res.status(400).json({ message: "User not found" });
+
+            if (user.verificationCode < Date.now()) {
+                return res.status(400).json({ message: "Verification code expired" })
+            }
+
+            const isMatch = await bcrypt.compare(verifyCode, user.verificationCode);
+            if (!isMatch) {
+                return res.status(400).json({ message: "Invalid verification code" })
+            }
+            user.isVerified = true;
+            user.verificationCode = null;
+            user.verificationExpires = null;
+            await user.save();
+
+            res.status(200).json({ message: "User verified successfully" })
+        } catch (error) {
+            console.error("Verification Error:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
     checkExistEmail: async (req, res) => {
         try {
-            console.log("checkExistEmail")
             const { email } = req.body;
             const checkEmail = await User.findOne({ email });
 
