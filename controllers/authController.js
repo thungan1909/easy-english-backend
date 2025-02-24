@@ -2,8 +2,46 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const req = require("express/lib/request");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+require("dotenv").config();
+const { google } = require("googleapis");
+const { authorize } = require("../gmail");
+
+
+let oAuth2Client; // Declare oAuth2Client here
+
+authorize(client => {
+    oAuth2Client = client; // Assign the authorized client to the variable
+});
+
 
 const authController = {
+    sendVerificationEmail: async (email, code) => {
+        try {
+            const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
+            const message = [
+                "From: me",
+                `To: ${email}`,
+                "Subject: Email Verification Code",
+                "",
+                `Your verification code is: ${code}`,
+            ].join("\n");
+
+            const encodedMessage = Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_");
+            await gmail.users.messages.send({
+                userId: "me",
+                requestBody: {
+                    raw: encodedMessage,
+                },
+            });
+
+            console.log("Verification email sent successfully.");
+        } catch (error) {
+            console.error("Error sending email", error)
+        }
+    },
+
     registerUser: async (req, res) => {
         try {
             const { username, email, password } = req.body;
@@ -12,49 +50,35 @@ const authController = {
             if (checkUsername) return res.status(400).json("This username is already taken");
 
             const salt = await bcrypt.genSalt(10);
-            const hashed = await bcrypt.hash(password, salt);
+            const hashedPassword = await bcrypt.hash(password, salt);
 
             // Generate a verification code (6-digit random number)
             const verificationCode = crypto.randomInt(100000, 999999).toString();
+            console.log(verificationCode, "verificationCode")
+            const hashedVerificationCode = await bcrypt.hash(verificationCode, 10);
+
+            const expiresAt = new Date();
+            expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
             // Create a new user
-            const newUser = new User({ username, email, password: hashed, verificationCode });
-            const savedUser = await newUser.save();
+            const newUser = new User({ username, email, password: hashedPassword, verificationCode: hashedVerificationCode, verificationExpires: expiresAt });
+            console.log("new USER", newUser)
+            await newUser.save();
 
-            await sendVericationEmail(email, verificationCode)
-            res.status(201).json({ message: "User registered successfully. Please check your email for verification code.", savedUser });
+            // await authController.sendVerificationEmail(email, verificationCode)
+            res.status(201).json({
+                message: "User registered successfully. Please check your email for verification code.",
+                userId: newUser._id
+            });
         } catch (err) {
             console.error("Registration Error:", err);
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
 
-    sendVericationEmail: async (email, code) => {
-        try {
-            const transporter = nodemailer.createTransport({
-                service: "gmail",
-                auth: {
-                    user: "dtn19092001@gmail.com",
-                    pass: "password"
-                },
-            });
-
-            const mailOptions = {
-                from: "email@gmail.com",
-                to: email,
-                subject: "Email Verification Code",
-                text: `Your verification code is: ${code}`,
-            };
-
-            await transporter.sendMail(mailOptions);
-            console.log("Verification email sent successfully.");
-        } catch (error) {
-            console.error("Error sending email", error)
-        }
-    },
-
     checkExistEmail: async (req, res) => {
         try {
+            console.log("checkExistEmail")
             const { email } = req.body;
             const checkEmail = await User.findOne({ email });
 
