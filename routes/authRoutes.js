@@ -6,6 +6,6 @@ router.post("/login", authController.loginUser)
 router.post("/check-exist-email", authController.checkExistEmail)
 router.post("/sign-up", authController.registerUser)
 router.post("/verify-user", authController.verificationUser)
-
+router.post("/get-verify-code", authController.getVerifyCode)
 module.exports = router;
 
