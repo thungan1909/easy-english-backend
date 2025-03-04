@@ -3,20 +3,27 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const app = express();
 
+const app = express();
 const authRoutes = require("./routes/authRoutes")
 
-// Connect to MongoDB
-mongoose
-    .connect(process.env.MONGO_URI,)
-    .then(() => console.log("Connected to MongoDB"))
-    .catch((err) => console.log(err));
 
-// Middleware
+const corsOptions = {
+    origin: process.env.CLIENT_URL || "http://localhost:5173", // Allow frontend origin
+    credentials: true, // Allow cookies in CORS requests
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+};
+
+mongoose
+    .connect(process.env.MONGO_URI)
+    .then(() => console.log("✅ Connected to MongoDB"))
+    .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+
+// ✅ Middleware
 app.use(express.json()); // Parse JSON bodies
-app.use(cors()); // Enable CORS
-app.use(cookieParser());
+app.use(cors(corsOptions)); // Secure CORS
+app.use(cookieParser()); // Parse cookies
 
 
 //Routes

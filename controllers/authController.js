@@ -1,44 +1,10 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-const req = require("express/lib/request");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 require("dotenv").config();
-const { google } = require("googleapis");
-const { authorize } = require("../gmail");
-
-
-let oAuth2Client;
-
-// authorize(client => {
-//     oAuth2Client = client;
-// });
-
 
 const authController = {
-    // sendVerificationEmail: async (email, code) => {
-    //     try {
-    //         const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
-    //         const message = [
-    //             "From: me",
-    //             `To: ${email}`,
-    //             "Subject: Email Verification Code",
-    //             "",
-    //             `Your verification code is: ${code}`,
-    //         ].join("\n");
-
-    //         const encodedMessage = Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_");
-    //         await gmail.users.messages.send({
-    //             userId: "me",
-    //             requestBody: {
-    //                 raw: encodedMessage,
-    //             },
-    //         });
-    //     } catch (error) {
-    //         console.error("Error sending email", error)
-    //     }
-    // },
 
     createVerifyCode: async () => {
         const verificationCode = crypto.randomInt(100000, 999999).toString();
@@ -145,14 +111,14 @@ const authController = {
     },
 
     generateAccessToken: (user) => jwt.sign(
-        { id: user.id, isAdmin: user.isAdmin },
+        { id: user._id, email: user.email }, // Payload
         process.env.JWT_ACCESS_KEY,
         { expiresIn: "1d" }
     ),
 
     generateRefreshToken: (user) =>
         jwt.sign(
-            { id: user.id, isAdmin: user.isAdmin },
+            { id: user._id, email: user.email }, // Payload
             process.env.JWT_REFRESH_KEY,
             { expiresIn: "365d" }
         ),
@@ -165,7 +131,7 @@ const authController = {
                 return res.status(400).json({ message: "Username and password are required." });
             }
 
-            const user = await User.findOne({ username }) || await User.findOne({ email: username });
+            const user = (await User.findOne({ username })) || (await User.findOne({ email: username }));
             if (!user || !(await bcrypt.compare(password, user.password)))
                 return res.status(401).json({ message: "Invalid username or password." });
 
@@ -199,6 +165,35 @@ const authController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
+
+    me: async (req, res) => {
+        try {
+            console.log("Decoded User:", req.user); // Debugging log
+
+            const userId = req.user?.id; // Use `id` instead of `_id`
+            console.log("User ID:", userId);
+
+            if (!userId) {
+                return res.status(401).json({ message: "Unauthorized" });
+            }
+
+            // Fetch user details from the database
+            const user = await User.findById(userId).select("-password -verificationCode -verificationExpires");
+            if (!user) {
+                return res.status(404).json({ message: "User not found" });
+            }
+
+            return res.status(200).json({
+                message: "User retrieved successfully",
+                user
+            });
+        } catch (err) {
+            console.error("Fetch User Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    }
+
+
 };
 
 module.exports = authController;
