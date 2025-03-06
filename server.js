@@ -5,11 +5,14 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 const app = express();
-const authRoutes = require("./routes/authRoutes")
+const authRoutes = require("./routes/authRoutes");
+const lessonRoutes = require("./routes/lessonRoutes");
+
+
 
 
 const corsOptions = {
-    origin: process.env.CLIENT_URL || "http://localhost:5173", // Allow frontend origin
+    origin: process.env.CLIENT_URL, // Allow frontend origin
     credentials: true, // Allow cookies in CORS requests
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
@@ -28,6 +31,7 @@ app.use(cookieParser()); // Parse cookies
 
 //Routes
 app.use("/v1/auth", authRoutes)
+app.use("/v1/lesson", lessonRoutes)
 
 
 // Start the Server
