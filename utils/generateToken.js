@@ -9,9 +9,9 @@ const generateToken = (user, key, expiresIn) =>
     jwt.sign({ id: user._id, email: user.email }, key, { expiresIn });
 
 
-const generateHashedCode = () => {
+const generateHashedCode = async () => {
     const code = crypto.randomInt(100000, 999999).toString();
-    const hashedCode = bcrypt.hash(code, 10);
+    const hashedCode = await bcrypt.hash(code, 10); // Add await here
     return { hashedCode, code, expiresAt: Date.now() + 10 * 60 * 1000 };
 };
 

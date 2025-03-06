@@ -1,43 +1,46 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
+const { findUserByEmailOrUsername, generateToken, generateHashedCode } = require("../utils/generateToken");
 require("dotenv").config();
 
 const authController = {
 
-    generateHashedCode: async () => {
-        const code = crypto.randomInt(100000, 999999).toString();
-        const hashedCode = await bcrypt.hash(code, 10);
-        return { hashedCode, code, expiresAt: Date.now() + 10 * 60 * 1000 };
+    me: async (req, res) => {
+        try {
+            const userId = req.user?.id;
+            if (!userId) return res.status(401).json({ message: "Invalid or missing authentication token." });
+
+            const user = await User.findById(userId).select("-password -verificationCode -verificationExpires");
+            if (!user) return res.status(404).json({ message: "User not found" });
+
+            return res.status(200).json({ message: "User retrieved successfully", user });
+        } catch (err) {
+            console.error("Fetch User Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
     },
 
-    generateAccessToken: (user) => jwt.sign(
-        { id: user._id, email: user.email },
-        process.env.JWT_ACCESS_KEY,
-        { expiresIn: "1d" }
-    ),
-
-    generateRefreshToken: (user) =>
-        jwt.sign(
-            { id: user._id, email: user.email }, // Payload
-            process.env.JWT_REFRESH_KEY,
-            { expiresIn: "365d" }
-        ),
+    checkExistEmail: async (req, res) => {
+        try {
+            const { email } = req.body;
+            const exists = !!(await User.findOne({ email }));
+            return res.status(200).json({ exists });
+        } catch (err) {
+            console.error("Check Email Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
 
     registerUser: async (req, res) => {
         try {
             const { username, email, password } = req.body;
-
-            const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-            if (existingUser) {
+            if ((await findUserByEmailOrUsername(username)) || (await findUserByEmailOrUsername(email))) {
                 return res.status(400).json({ message: "Username or email already exists." });
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
-
-            const { hashedCode, verificationCode, expiresAt } = await authController.generateHashedCode();
-            console.log("Verification Code:", verificationCode); // TODO: Send via email
+            const { hashedCode, code, expiresAt } = await generateHashedCode();
+            console.log("Verification Code:", code); // TODO: Send via email
 
             const newUser = await User.create({
                 username,
@@ -57,22 +60,16 @@ const authController = {
     loginUser: async (req, res) => {
         try {
             const { username, password } = req.body;
-            if (!username || !password) {
-                return res.status(400).json({ message: "Username and password are required." });
-            }
+            if (!username || !password) return res.status(400).json({ message: "Username and password are required." });
 
-            const user = await User.findOne({ $or: [{ username }, { email: username }] });
+            const user = await findUserByEmailOrUsername(username);
             if (!user || !(await bcrypt.compare(password, user.password)))
                 return res.status(401).json({ message: "Invalid username or password." });
 
             if (!user.isVerified) return res.status(403).json({ message: "Please verify your account first." });
 
-            const accessToken = authController.generateAccessToken(user);
-            const refreshToken = authController.generateRefreshToken(user);
-
-            if (!accessToken || !refreshToken) {
-                return res.status(500).json({ message: "Token generation failed" });
-            }
+            const accessToken = generateToken(user, process.env.JWT_ACCESS_KEY, "1d");
+            const refreshToken = generateToken(user, process.env.JWT_REFRESH_KEY, "365d");
 
             res.cookie("refresh", refreshToken, {
                 httpOnly: true,
@@ -80,7 +77,6 @@ const authController = {
                 path: "/",
                 sameSite: "strict",
             });
-
 
             return res.status(200).json({
                 message: "Login successful",
@@ -103,12 +99,10 @@ const authController = {
             const { email } = req.body;
             const user = await User.findOne({ email });
             if (!user) return res.status(404).json({ message: "User not found." });
+            if (user.isVerified) return res.status(400).json({ message: "User is already verified. Please sign in." });
 
-            if (user.isVerified)
-                return res.status(400).json({ message: "User is already verified. Please sign in." });
-
-            const { hashedCode, verificationCode, expiresAt } = await authController.generateHashedCode();
-            console.log("Verification Code:", verificationCode); // TODO: Send via email
+            const { hashedCode, code, expiresAt } = await generateHashedCode();
+            console.log("Verification Code:", code); // TODO: Send via email
 
             user.verificationCode = hashedCode;
             user.verificationExpires = expiresAt;
@@ -127,21 +121,40 @@ const authController = {
             const user = await User.findOne({ email });
             if (!user) return res.status(404).json({ message: "User not found." });
 
-            if (user.verificationExpires < new Date())
+            if (Date.now() > user.verificationExpires)
                 return res.status(400).json({ message: "Verification code has expired." });
 
-            const isMatch = await bcrypt.compare(verifyCode, user.verificationCode);
-            if (!isMatch)
+            if (!(await bcrypt.compare(verifyCode, user.verificationCode)))
                 return res.status(400).json({ message: "Invalid verification code." });
 
-            await User.updateOne(
-                { email },
-                { $set: { isVerified: true }, $unset: { verificationCode: "", verificationExpires: "" } }
-            );
+            await User.updateOne({ email }, { $set: { isVerified: true }, $unset: { verificationCode: "", verificationExpires: "" } });
 
             res.status(200).json({ message: "User verified successfully." });
         } catch (error) {
             console.error("Verification Error:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
+    resetPassword: async (req, res) => {
+        try {
+            const { email, password } = req.body;
+            const user = await User.findOne({ email });
+            if (!user) return res.status(404).json({ message: "User not found." });
+
+            if (!user.isConfirmResetCode)
+                return res.status(400).json({ message: "Reset code has not been confirmed." });
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            await User.updateOne({ email }, {
+                $set: { password: hashedPassword, isConfirmResetCode: false },
+                $unset: { resetCode: "", resetCodeExpires: "" },
+            });
+
+            res.status(200).json({ message: "Password reset successfully." });
+        } catch (error) {
+            console.error("Reset password Error:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
@@ -153,8 +166,8 @@ const authController = {
             const user = await User.findOne({ email });
             if (!user) return res.status(404).json({ message: "User not found." });
 
-            const { hashedCode: hashedResetCode, verificationCode, expiresAt } = await authController.generateHashedCode();
-            console.log(`Reset password code generated for ${email}`, verificationCode); // Logging without exposing the code
+            const { hashedCode: hashedResetCode, code, expiresAt } = await generateHashedCode();
+            console.log(`Reset password code generated for ${email}`, code);
 
             user.resetCode = hashedResetCode;
             user.resetCodeExpires = expiresAt;
@@ -190,63 +203,6 @@ const authController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
-
-    resetPassword: async (req, res) => {
-        try {
-            const { email, password } = req.body;
-            const user = await User.findOne({ email });
-            if (!user) return res.status(404).json({ message: "User not found." });
-
-            if (!user.isConfirmResetCode)
-                return res.status(400).json({ message: "Reset code has not been confirmed." });
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            await User.updateOne(
-                { email },
-                { $set: { password: hashedPassword, isConfirmResetCode: false, resetCode: null, resetCodeExpires: null } }
-            );
-
-            res.status(200).json({ message: "Password reset successfully." });
-        } catch (error) {
-            console.error("Reset password Error:", error);
-            res.status(500).json({ message: "Internal Server Error" });
-        }
-    },
-
-    checkExistEmail: async (req, res) => {
-        try {
-            const { email } = req.body;
-            const exists = !!(await User.findOne({ email }));
-            return res.status(200).json({ exists });
-        } catch (err) {
-            console.error("Check Email Error:", err);
-            res.status(500).json({ message: "Internal Server Error" });
-        }
-    },
-
-    me: async (req, res) => {
-        try {
-            const userId = req.user?.id;
-
-            if (!userId) {
-                return res.status(401).json({ message: "Invalid or missing authentication token." });
-            }
-
-            const user = await User.findById(userId).select("-password -verificationCode -verificationExpires");
-            if (!user) {
-                return res.status(404).json({ message: "User not found" });
-            }
-
-            return res.status(200).json({
-                message: "User retrieved successfully",
-                user
-            });
-        } catch (err) {
-            console.error("Fetch User Error:", err);
-            res.status(500).json({ message: "Internal Server Error" });
-        }
-    }
 };
 
 module.exports = authController;
