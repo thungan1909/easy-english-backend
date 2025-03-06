@@ -1,18 +1,22 @@
+const User = require("../models/User");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 require("dotenv").config();
 
-const secret = process.env.JWT_SECRET?.trim(); // Trim to remove spaces
 
-if (!secret) {
-    console.error("❌ JWT_SECRET is missing! Check your .env file.");
-    process.exit(1);
-}
+const generateToken = (user, key, expiresIn) =>
+    jwt.sign({ id: user._id, email: user.email }, key, { expiresIn });
 
-const payload = {
-    id: "67c6c0a66fd3a94727150c7e",
-    email: "nganthud@gmail.com",
+
+const generateHashedCode = () => {
+    const code = crypto.randomInt(100000, 999999).toString();
+    const hashedCode = bcrypt.hash(code, 10);
+    return { hashedCode, code, expiresAt: Date.now() + 10 * 60 * 1000 };
 };
 
-const newToken = jwt.sign(payload, secret, { expiresIn: "1h" });
+const findUserByEmailOrUsername = (identifier) =>
+    User.findOne({ $or: [{ email: identifier }, { username: identifier }] });
 
-console.log("✅ New Token:", newToken);
+
+module.exports = { generateToken, generateHashedCode, findUserByEmailOrUsername }

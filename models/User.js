@@ -9,10 +9,12 @@ const userSchema = new mongoose.Schema(
         isVerified: { type: Boolean, default: false },
         verificationCode: { type: String },
         verificationExpires: { type: Date },
+        resetCode: { type: String },
+        resetCodeExpires: { type: Date },
+        isConfirmResetCode: { type: Boolean, default: false }
     },
     { timestamps: true }
 );
 
-// Ensure email uniqueness
 
 module.exports = mongoose.model("User", userSchema);
