@@ -12,11 +12,24 @@ const lessonController = {
 
     createLesson: async (req, res) => {
         try {
-            const { title, content, words, description, imageFile, audioFile, source } = req.body;
+            const imageFile = req.body.imageFile; // This should be a valid URL
+            const audioFile = req.body.audioFile; // This should be a valid URL
 
-            if (!title || !content || !words || !audioFile || !imageFile || !source) {
-                return res.status(400).json({ message: "All fields are required." });
+            console.log("Received Image URL:", imageFile);
+            console.log("Received Audio URL:", audioFile);
+
+            const { title, content, words, description, source } = req.body;
+            if (!req.files || !imageFile || !audioFile) {
+                return res.status(400).json({ message: "Image and audio files are required." });
             }
+
+
+
+            if (!title || !content || !words) {
+                return res.status(400).json({ message: "Title, content, and words are required." });
+            }
+
+            const parsedWords = typeof words === "string" ? JSON.parse(words) : words;
 
             const userId = req.user?.id;
             if (!userId) {
@@ -25,20 +38,25 @@ const lessonController = {
 
             const user = await User.findById(userId).select("username");
             if (!user) return res.status(404).json({ message: "User not found" });
-            console.log("USSER", user)
+            console.log("USER:", user);
 
             const code = await lessonController.generateLessonCode();
+
+            // // Get Cloudinary URLs
+            // const imageFile = req.files["imageFile"][0].secure_url;
+            // const audioFile = req.files["audioFile"][0].secure_url;
 
             const newLesson = await Lesson.create({
                 title,
                 content,
                 description,
+                words: parsedWords,
                 imageFile,
-                words,
                 audioFile,
-                creator: userId, // Store only the user ID
+                creator: userId,
                 source,
-                code
+                code,
+                view: 0,
             });
 
             res.status(201).json({ message: "Lesson created successfully.", lesson: newLesson });
