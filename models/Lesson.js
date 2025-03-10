@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const lessonSchema = new mongoose.Schema(
     {
         title: { type: String, required: true },
+        code: { type: String, required: true },
         content: { type: String, required: true },
         description: { type: String },
         words: { type: [String], required: true },
@@ -12,8 +13,6 @@ const lessonSchema = new mongoose.Schema(
         source: { type: String, required: true },
         view: { type: Number },
         provider: { type: String },
-
-
     },
     { timestamps: true }
 );

@@ -11,9 +11,10 @@ const generateToken = (user, key, expiresIn) =>
 
 const generateHashedCode = async () => {
     const code = crypto.randomInt(100000, 999999).toString();
-    const hashedCode = await bcrypt.hash(code, 10); // Add await here
+    const hashedCode = await bcrypt.hash(code, 10);
     return { hashedCode, code, expiresAt: Date.now() + 10 * 60 * 1000 };
 };
+
 
 const findUserByEmailOrUsername = (identifier) =>
     User.findOne({ $or: [{ email: identifier }, { username: identifier }] });
