@@ -12,19 +12,10 @@ const lessonController = {
 
     createLesson: async (req, res) => {
         try {
-            const imageFile = req.body.imageFile; // This should be a valid URL
-            const audioFile = req.body.audioFile; // This should be a valid URL
-
-            console.log("Received Image URL:", imageFile);
-            console.log("Received Audio URL:", audioFile);
-
-            const { title, content, words, description, source } = req.body;
-            if (!req.files || !imageFile || !audioFile) {
+            const { title, content, words, description, source, imageFile, audioFile } = req.body;
+            if (!imageFile || !audioFile) {
                 return res.status(400).json({ message: "Image and audio files are required." });
             }
-
-
-
             if (!title || !content || !words) {
                 return res.status(400).json({ message: "Title, content, and words are required." });
             }
@@ -35,16 +26,10 @@ const lessonController = {
             if (!userId) {
                 return res.status(401).json({ message: "Unauthorized: No creator specified." });
             }
-
             const user = await User.findById(userId).select("username");
             if (!user) return res.status(404).json({ message: "User not found" });
-            console.log("USER:", user);
 
             const code = await lessonController.generateLessonCode();
-
-            // // Get Cloudinary URLs
-            // const imageFile = req.files["imageFile"][0].secure_url;
-            // const audioFile = req.files["audioFile"][0].secure_url;
 
             const newLesson = await Lesson.create({
                 title,

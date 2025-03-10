@@ -7,9 +7,6 @@ const cookieParser = require("cookie-parser");
 const app = express();
 const authRoutes = require("./routes/authRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
-const uploadRoute = require("./routes/uploadRoutes");
-
-
 
 const corsOptions = {
     origin: process.env.CLIENT_URL, // Allow frontend origin
@@ -32,9 +29,6 @@ app.use(cookieParser()); // Parse cookies
 //Routes
 app.use("/v1/auth", authRoutes)
 app.use("/v1/lesson", lessonRoutes)
-app.use("/api/upload", uploadRoute);
-
-
 
 // Start the Server
 const PORT = process.env.PORT || 5000;

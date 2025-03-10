@@ -15,7 +15,6 @@ const generateHashedCode = async () => {
     return { hashedCode, code, expiresAt: Date.now() + 10 * 60 * 1000 };
 };
 
-
 const findUserByEmailOrUsername = (identifier) =>
     User.findOne({ $or: [{ email: identifier }, { username: identifier }] });
 
