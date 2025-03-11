@@ -12,15 +12,14 @@ const lessonController = {
 
     createLesson: async (req, res) => {
         try {
-            const { title, content, words, description, source, imageFile, audioFile } = req.body;
+            const { title, content, wordsWithHint, wordsWithoutHint, description, source, imageFile, audioFile } = req.body;
             if (!imageFile || !audioFile) {
                 return res.status(400).json({ message: "Image and audio files are required." });
             }
-            if (!title || !content || !words) {
+            if (!title || !content || !wordsWithoutHint || !wordsWithHint) {
                 return res.status(400).json({ message: "Title, content, and words are required." });
             }
 
-            const parsedWords = typeof words === "string" ? JSON.parse(words) : words;
 
             const userId = req.user?.id;
             if (!userId) {
@@ -35,7 +34,8 @@ const lessonController = {
                 title,
                 content,
                 description,
-                words: parsedWords,
+                wordsWithHint,
+                wordsWithoutHint,
                 imageFile,
                 audioFile,
                 creator: userId,
