@@ -12,6 +12,7 @@ router.post("/create",
     upload.fields([{ name: "imageFile" }, { name: "audioFile" }]), authMiddleware,
     lessonController.createLesson
 );
+router.post("/listen/submit", authMiddleware, lessonController.listenLesson);
 
 router.get("/list/inquiry", lessonController.getListLesson);
 router.get("/:id", lessonController.getLessonById);

@@ -51,7 +51,7 @@ const lessonController = {
         }
     },
 
-    getListLesson: async (req, res) => {
+    getListLesson: async (res) => {
         try {
             const lessons = await Lesson.find().populate("creator", "username"); // Fetch lessons with creator username
             res.status(200).json(lessons);
@@ -80,7 +80,7 @@ const lessonController = {
             console.error("Error fetching lesson by ID:", err);
             res.status(500).json({ message: "Internal Server Error" });
         }
-    }
+    },
 }
 
 module.exports = lessonController;

@@ -12,12 +12,11 @@ const userController = {
 
             const { username, email, ...updateFields } = req.body;
 
-            // Find user but don't update username or email
             const updatedUser = await User.findByIdAndUpdate(
                 userId,
-                { $set: updateFields }, // Update only the allowed fields
+                { $set: updateFields },
                 { new: true, runValidators: true }
-            ).select("-password"); // Exclude password from the response
+            ).select("-password");
 
             if (!updatedUser) {
                 return res.status(404).json({ message: "User not found" });
@@ -26,8 +25,8 @@ const userController = {
             res.status(200).json({
                 message: "User information updated successfully",
                 user: {
-                    username: updatedUser.username, // Ensure username is still returned
-                    email: updatedUser.email, // Ensure email is still returned
+                    username: updatedUser.username,
+                    email: updatedUser.email,
                     ...updateFields,
                 },
             });

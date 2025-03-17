@@ -13,6 +13,16 @@ const lessonSchema = new mongoose.Schema(
         creator: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         source: { type: String },
         view: { type: Number, default: 0 },
+
+        submissions: [
+            {
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Who submitted
+                user_text: { type: String, required: true }, // Full user input as text
+                user_array: { type: [String], required: true }, // User input split into words
+                accuracy: { type: Number, required: true }, // Accuracy percentage
+                submittedAt: { type: Date, default: Date.now }, // Timestamp
+            },
+        ],
     },
     { timestamps: true }
 );
