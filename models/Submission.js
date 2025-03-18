@@ -4,9 +4,8 @@ const submissionSchema = new mongoose.Schema(
     {
         user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
         lesson: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson", required: true },
-        user_text: { type: String, required: true },
+        original_array: { type: [String], required: true }, // Ensure original blanks are saved
         user_array: { type: [String], required: true },
-        result_text: { type: String, required: true },
         result_array: { type: [String], required: true },
         correct_answers: { type: Number, required: true },
         total_filled_blanks: { type: Number, required: true },

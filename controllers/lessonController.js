@@ -51,7 +51,7 @@ const lessonController = {
         }
     },
 
-    getListLesson: async (res) => {
+    getListLesson: async (req, res) => {
         try {
             const lessons = await Lesson.find().populate("creator", "username"); // Fetch lessons with creator username
             res.status(200).json(lessons);

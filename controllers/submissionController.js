@@ -5,56 +5,60 @@ const submissionController = {
 
     listenLesson: async (req, res) => {
         try {
-            const { lessonId, result_array, user_array } = req.body
+            const { lessonId, original_array, result_array, user_array } = req.body
 
-            const userId = req.user.id; // Assuming authentication middleware provides `req.user`
+            const userId = req.user.id;
 
-            // Validate input
-            if (!lessonId || !user_array.length || !result_array.length) {
+            if (
+                !lessonId ||
+                !Array.isArray(original_array) || !original_array.length ||
+                !Array.isArray(result_array) || !result_array.length ||
+                !Array.isArray(user_array) || !user_array.length
+            ) {
                 return res.status(400).json({ message: "Invalid input data" });
             }
 
-            // Find the lesson by ID
             const lesson = await Lesson.findById(lessonId);
             if (!lesson) {
                 return res.status(404).json({ message: "Lesson not found" });
             }
 
-            // Ensure arrays have the same length
-            if (user_array.length !== result_array.length) {
+            if (user_array.length !== result_array.length || original_array.length !== result_array.length) {
                 return res.status(400).json({ message: "Arrays length mismatch" });
             }
 
-            // Compare only blank words that the user filled in
             let correctCount = 0;
             let filledBlankCount = 0;
+            let blankCount = 0;
+
+            const normalize = (word) => (word ? word.trim().toLowerCase() : "_____");
+
 
             for (let i = 0; i < result_array.length; i++) {
-                const userWord = user_array[i].trim().toLowerCase();
-                const correctWord = result_array[i].trim().toLowerCase();
+                const userWord = normalize(user_array[i]);
+                const correctWord = normalize(result_array[i]);
 
-                if (result_array[i] === "_____") {
-                    // This was originally a blank space
+                if (!original_array[i]?.trim()) {
+                    blankCount++;
+                    console.log("original:", original_array[i], "| user:", userWord, "| correct:", correctWord);
                     if (userWord !== "_____") {
-                        filledBlankCount++; // Count words the user filled in
+                        filledBlankCount++;
                         if (userWord === correctWord) {
-                            correctCount++; // Count correct answers only for blanks
+                            correctCount++;
                         }
                     }
                 }
             }
 
-            // Calculate accuracy only for filled blanks
-            const accuracy = filledBlankCount > 0 ? ((correctCount / filledBlankCount) * 100).toFixed(2) : "0.00";
-            // Save submission to the database
+            const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
             const newSubmission = new Submission({
                 user: userId,
                 lesson: lessonId,
-                user_text,
+                original_array,
                 user_array,
-                result_text,
                 result_array,
                 correct_answers: correctCount,
+                blankCount,
                 total_filled_blanks: filledBlankCount,
                 accuracy,
             });
@@ -64,6 +68,7 @@ const submissionController = {
             return res.status(200).json({
                 message: "Submission received successfully",
                 accuracy: `${accuracy}%`,
+                blankCount: blankCount,
                 correctAnswers: correctCount,
                 totalFilledBlanks: filledBlankCount,
             });

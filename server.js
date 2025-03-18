@@ -8,6 +8,7 @@ const app = express();
 const authRoutes = require("./routes/authRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
 const userRoutes = require("./routes/userRoutes");
+const submissionRoutes = require("./routes/submissionRoutes");
 
 const corsOptions = {
     origin: process.env.CLIENT_URL, // Allow frontend origin
@@ -31,6 +32,7 @@ app.use(cookieParser()); // Parse cookies
 app.use("/v1/auth", authRoutes)
 app.use("/v1/lesson", lessonRoutes)
 app.use("/v1/user", userRoutes)
+app.use("/v1/submission", submissionRoutes)
 
 // Start the Server
 const PORT = process.env.PORT || 5000;
