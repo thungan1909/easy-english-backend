@@ -1,12 +1,12 @@
 const Lesson = require("../models/Lesson");
 const Submission = require("../models/Submission");
+const User = require("../models/User");
 
 const submissionController = {
 
     listenLesson: async (req, res) => {
         try {
             const { lessonId, original_array, result_array, user_array } = req.body
-
             const userId = req.user.id;
 
             if (
@@ -32,7 +32,6 @@ const submissionController = {
             let blankCount = 0;
 
             const normalize = (word) => (word ? word.trim().toLowerCase() : "_____");
-
 
             for (let i = 0; i < result_array.length; i++) {
                 const userWord = normalize(user_array[i]);
@@ -64,6 +63,25 @@ const submissionController = {
             });
 
             await newSubmission.save();
+            // Update lesson listen count and listeners
+            await Lesson.findByIdAndUpdate(
+                lessonId,
+                {
+                    $inc: { listenCount: 1 },
+                    $addToSet: { listenedBy: userId }
+                },
+                { new: true }
+            );
+
+            // Update user's listened lessons
+            await User.findByIdAndUpdate(
+                userId,
+                {
+                    $addToSet: { listenedLessons: { lesson: lessonId, listenedAt: new Date() } }
+                },
+                { new: true }
+            );
+
 
             return res.status(200).json({
                 message: "Submission received successfully",
@@ -73,7 +91,7 @@ const submissionController = {
                 totalFilledBlanks: filledBlankCount,
             });
         } catch (err) {
-            console.error("Error in listenLesson:", err);
+            console.error("Error in listen Lesson:", err);
             return res.status(500).json({ message: "Internal server error" });
         }
     }

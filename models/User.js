@@ -23,6 +23,14 @@ const userSchema = new mongoose.Schema(
         resetCode: { type: String },
         resetCodeExpires: { type: Date },
         isConfirmResetCode: { type: Boolean, default: false },
+
+        //LESSON
+        listenedLessons: [
+            {
+                lesson: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
+                listenedAt: { type: Date, default: Date.now },
+            }
+        ]
     },
     { timestamps: true }
 );
