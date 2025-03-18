@@ -1,9 +1,9 @@
 const Lesson = require("../models/Lesson");
 const Submission = require("../models/Submission");
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 const submissionController = {
-
     listenLesson: async (req, res) => {
         try {
             const { lessonId, original_array, result_array, user_array } = req.body
@@ -39,7 +39,6 @@ const submissionController = {
 
                 if (!original_array[i]?.trim()) {
                     blankCount++;
-                    console.log("original:", original_array[i], "| user:", userWord, "| correct:", correctWord);
                     if (userWord !== "_____") {
                         filledBlankCount++;
                         if (userWord === correctWord) {
@@ -50,6 +49,7 @@ const submissionController = {
             }
 
             const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
+
             const newSubmission = new Submission({
                 user: userId,
                 lesson: lessonId,
@@ -57,13 +57,12 @@ const submissionController = {
                 user_array,
                 result_array,
                 correct_answers: correctCount,
-                blankCount,
                 total_filled_blanks: filledBlankCount,
                 accuracy,
             });
 
             await newSubmission.save();
-            // Update lesson listen count and listeners
+
             await Lesson.findByIdAndUpdate(
                 lessonId,
                 {
@@ -73,7 +72,6 @@ const submissionController = {
                 { new: true }
             );
 
-            // Update user's listened lessons
             await User.findByIdAndUpdate(
                 userId,
                 {
@@ -86,7 +84,7 @@ const submissionController = {
             return res.status(200).json({
                 message: "Submission received successfully",
                 accuracy: `${accuracy}%`,
-                blankCount: blankCount,
+                blankCount,
                 correctAnswers: correctCount,
                 totalFilledBlanks: filledBlankCount,
             });
@@ -94,7 +92,34 @@ const submissionController = {
             console.error("Error in listen Lesson:", err);
             return res.status(500).json({ message: "Internal server error" });
         }
-    }
+    },
+
+    getLessonResult: async (req, res) => {
+        try {
+            const { lessonId } = req.query;
+            const userId = req.user?.id;
+
+            if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+                return res.status(400).json({ message: "Invalid lesson ID." });
+            }
+            if (!mongoose.Types.ObjectId.isValid(userId)) {
+                return res.status(400).json({ message: "Invalid user ID." });
+            }
+
+            const submissions = await Submission.find({
+                lesson: lessonId,
+                user: userId
+            }).populate("user", "name email");
+
+            if (!submissions.length) {
+                return res.status(404).json({ message: "No submissions found for this lesson." });
+            }
+
+            return res.status(200).json({ submissions });
+        } catch (err) {
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
 }
 
 module.exports = submissionController;
