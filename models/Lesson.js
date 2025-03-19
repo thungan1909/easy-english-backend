@@ -12,8 +12,8 @@ const lessonSchema = new mongoose.Schema(
         imageFile: { type: String, required: false },
         creator: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         source: { type: String },
-        listenCount: { type: Number, default: 0 }, // New field for listen
-        listenedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]  // Renamed from "listeners"
+        listenCount: { type: Number, default: 0 },
+        listenedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
     },
     { timestamps: true }
 );

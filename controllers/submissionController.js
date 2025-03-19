@@ -4,17 +4,43 @@ const User = require("../models/User");
 const mongoose = require("mongoose");
 
 const submissionController = {
-    listenLesson: async (req, res) => {
+    calculateAccuracy: (originalArray, resultArray, userArray) => {
+        let correctCount = 0;
+        let filledBlankCount = 0;
+        let blankCount = 0;
+
+        const normalize = (word) => (word ? word.trim().toLowerCase() : "_____");
+
+        for (let i = 0; i < resultArray.length; i++) {
+            const userWord = normalize(userArray[i]);
+            const correctWord = normalize(resultArray[i]);
+
+            if (!originalArray[i]?.trim()) {
+                blankCount++;
+                if (userWord !== "_____") {
+                    filledBlankCount++;
+                    if (userWord === correctWord) {
+                        correctCount++;
+                    }
+                }
+            }
+        }
+        const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
+
+        return {
+            accuracy: `${accuracy}%`,
+            blankCount,
+            correctAnswers: correctCount,
+            totalFilledBlanks: filledBlankCount,
+        };
+
+    },
+    compareLesson: async (req, res) => {
         try {
             const { lessonId, original_array, result_array, user_array } = req.body
-            const userId = req.user.id;
 
-            if (
-                !lessonId ||
-                !Array.isArray(original_array) || !original_array.length ||
-                !Array.isArray(result_array) || !result_array.length ||
-                !Array.isArray(user_array) || !user_array.length
-            ) {
+
+            if (!lessonId || ![original_array, result_array, user_array].every(arr => Array.isArray(arr) && arr.length)) {
                 return res.status(400).json({ message: "Invalid input data" });
             }
 
@@ -23,32 +49,39 @@ const submissionController = {
                 return res.status(404).json({ message: "Lesson not found" });
             }
 
-            if (user_array.length !== result_array.length || original_array.length !== result_array.length) {
+            if (![user_array, result_array, original_array].every(arr => arr.length === result_array.length)) {
                 return res.status(400).json({ message: "Arrays length mismatch" });
             }
 
-            let correctCount = 0;
-            let filledBlankCount = 0;
-            let blankCount = 0;
+            accuracyResult = submissionController.calculateAccuracy(original_array, result_array, user_array);
+            return res.status(200).json(accuracyResult);
+        } catch (err) {
+            console.error("Error in listen Lesson:", err);
+            return res.status(500).json({ message: "Internal server error" });
+        }
+    },
+    listenLesson: async (req, res) => {
+        try {
+            const { lessonId, original_array, result_array, user_array } = req.body
+            const userId = req.user.id;
 
-            const normalize = (word) => (word ? word.trim().toLowerCase() : "_____");
 
-            for (let i = 0; i < result_array.length; i++) {
-                const userWord = normalize(user_array[i]);
-                const correctWord = normalize(result_array[i]);
-
-                if (!original_array[i]?.trim()) {
-                    blankCount++;
-                    if (userWord !== "_____") {
-                        filledBlankCount++;
-                        if (userWord === correctWord) {
-                            correctCount++;
-                        }
-                    }
-                }
+            if (!lessonId || ![original_array, result_array, user_array].every(arr => Array.isArray(arr) && arr.length)) {
+                return res.status(400).json({ message: "Invalid input data" });
             }
 
-            const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
+            const lesson = await Lesson.findById(lessonId);
+            if (!lesson) {
+                return res.status(404).json({ message: "Lesson not found" });
+            }
+
+            if (![user_array, result_array, original_array].every(arr => arr.length === result_array.length)) {
+                return res.status(400).json({ message: "Arrays length mismatch" });
+            }
+
+
+            const result = submissionController.calculateAccuracy(original_array, result_array, user_array);
+
 
             const newSubmission = new Submission({
                 user: userId,
@@ -56,9 +89,9 @@ const submissionController = {
                 original_array,
                 user_array,
                 result_array,
-                correct_answers: correctCount,
-                total_filled_blanks: filledBlankCount,
-                accuracy,
+                correct_answers: result.correctAnswers,
+                total_filled_blanks: result.totalFilledBlanks,
+                accuracy: result.accuracy,
             });
 
             await newSubmission.save();
@@ -83,10 +116,7 @@ const submissionController = {
 
             return res.status(200).json({
                 message: "Submission received successfully",
-                accuracy: `${accuracy}%`,
-                blankCount,
-                correctAnswers: correctCount,
-                totalFilledBlanks: filledBlankCount,
+                ...result,
             });
         } catch (err) {
             console.error("Error in listen Lesson:", err);
@@ -115,7 +145,7 @@ const submissionController = {
                 return res.status(404).json({ message: "No submissions found for this lesson." });
             }
 
-            return res.status(200).json({ submissions });
+            return res.status(200).json(submissions[0]);
         } catch (err) {
             res.status(500).json({ message: "Internal Server Error" });
         }
