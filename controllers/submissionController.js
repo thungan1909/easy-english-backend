@@ -4,6 +4,16 @@ const User = require("../models/User");
 const mongoose = require("mongoose");
 
 const submissionController = {
+
+    calculateScore: (totalFilledBlanks, blankCount, correctAnswers) => {
+        if (totalFilledBlanks === 0 || blankCount === 0) return 0;
+
+        const difficultyFactor = blankCount * 2;
+        let score = (correctAnswers / blankCount) * difficultyFactor;
+
+        return Math.round(score);
+    },
+
     calculateAccuracy: (originalArray, resultArray, userArray) => {
         let correctCount = 0;
         let filledBlankCount = 0;
@@ -25,20 +35,21 @@ const submissionController = {
                 }
             }
         }
-        const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
+        // const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
+        const accuracy = blankCount > 0 ? Number(((correctCount / blankCount) * 100).toFixed(2)) : 0;
 
         return {
-            accuracy: `${accuracy}%`,
+            accuracy: accuracy,
             blankCount,
             correctAnswers: correctCount,
             totalFilledBlanks: filledBlankCount,
         };
 
     },
+
     compareLesson: async (req, res) => {
         try {
             const { lessonId, original_array, result_array, user_array } = req.body
-
 
             if (!lessonId || ![original_array, result_array, user_array].every(arr => Array.isArray(arr) && arr.length)) {
                 return res.status(400).json({ message: "Invalid input data" });
@@ -54,17 +65,24 @@ const submissionController = {
             }
 
             accuracyResult = submissionController.calculateAccuracy(original_array, result_array, user_array);
-            return res.status(200).json(accuracyResult);
+            score = submissionController.calculateScore(accuracyResult.totalFilledBlanks, accuracyResult.blankCount, accuracyResult.correctAnswers);
+
+            return res.status(200).json({
+                accuracy: accuracyResult.accuracy,
+                blankCount: accuracyResult.blankCount,
+                correctAnswers: accuracyResult.correctAnswers,
+                totalFilledBlanks: accuracyResult.totalFilledBlanks,
+                score
+            });
         } catch (err) {
-            console.error("Error in listen Lesson:", err);
             return res.status(500).json({ message: "Internal server error" });
         }
     },
+
     listenLesson: async (req, res) => {
         try {
             const { lessonId, original_array, result_array, user_array } = req.body
             const userId = req.user.id;
-
 
             if (!lessonId || ![original_array, result_array, user_array].every(arr => Array.isArray(arr) && arr.length)) {
                 return res.status(400).json({ message: "Invalid input data" });
@@ -79,9 +97,8 @@ const submissionController = {
                 return res.status(400).json({ message: "Arrays length mismatch" });
             }
 
-
             const result = submissionController.calculateAccuracy(original_array, result_array, user_array);
-
+            const score = submissionController.calculateScore(result.totalFilledBlanks, result.blankCount, result.correctAnswers);
 
             const newSubmission = new Submission({
                 user: userId,
@@ -92,6 +109,7 @@ const submissionController = {
                 correct_answers: result.correctAnswers,
                 total_filled_blanks: result.totalFilledBlanks,
                 accuracy: result.accuracy,
+                score: score,
             });
 
             await newSubmission.save();
@@ -104,19 +122,29 @@ const submissionController = {
                 },
                 { new: true }
             );
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            startOfWeek.setHours(0, 0, 0, 0);
+            startOfWeek.setDate(now.getDate() - now.getDay());
 
             await User.findByIdAndUpdate(
                 userId,
                 {
-                    $addToSet: { listenedLessons: { lesson: lessonId, listenedAt: new Date() } }
+                    $inc: { totalScore: score },
+                    $addToSet: { listenedLessons: { lesson: lessonId, listenedAt: new Date() } },
+                    $push: {
+                        weeklyScores: {
+                            $each: [{ weekStart: startOfWeek, score }],
+                            $position: 0,
+                        },
+                    },
                 },
-                { new: true }
-            );
-
+                { new: true, upsert: true }
+            )
 
             return res.status(200).json({
                 message: "Submission received successfully",
-                ...result,
+                ...result, score,
             });
         } catch (err) {
             console.error("Error in listen Lesson:", err);
@@ -139,7 +167,9 @@ const submissionController = {
             const submissions = await Submission.find({
                 lesson: lessonId,
                 user: userId
-            }).populate("user", "name email");
+            }).populate("user", "name email").sort({ createdAt: -1 }) // Get the latest submission
+                .limit(1);
+            ;
 
             if (!submissions.length) {
                 return res.status(404).json({ message: "No submissions found for this lesson." });

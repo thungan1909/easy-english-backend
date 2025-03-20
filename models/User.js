@@ -1,5 +1,12 @@
 const mongoose = require("mongoose");
 
+// Define weekly score schema
+const weeklyScoreSchema = new mongoose.Schema({
+    weekStart: { type: Date, required: true },
+    score: { type: Number, default: 0 }
+});
+
+// Define user schema
 const userSchema = new mongoose.Schema(
     {
         username: { type: String, required: true, unique: true, trim: true },
@@ -16,7 +23,8 @@ const userSchema = new mongoose.Schema(
         detailAddress: { type: String },
         university: { type: String },
         major: { type: String },
-        // AUTHEN
+
+        // AUTHENTICATION
         isVerified: { type: Boolean, default: false },
         verificationCode: { type: String },
         verificationExpires: { type: Date },
@@ -24,16 +32,19 @@ const userSchema = new mongoose.Schema(
         resetCodeExpires: { type: Date },
         isConfirmResetCode: { type: Boolean, default: false },
 
-        //LESSON
+        // LESSON HISTORY
         listenedLessons: [
             {
                 lesson: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
-                listenedAt: { type: Date, default: Date.now },
+                listenedAt: { type: Date, default: Date.now }
             }
-        ]
+        ],
+
+        // SCORE SYSTEM
+        totalScore: { type: Number, default: 0 },
+        weeklyScores: { type: [weeklyScoreSchema], default: [] }
     },
     { timestamps: true }
 );
-
 
 module.exports = mongoose.model("User", userSchema);

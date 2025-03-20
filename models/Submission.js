@@ -11,6 +11,8 @@ const submissionSchema = new mongoose.Schema(
         total_filled_blanks: { type: Number, required: true },
         accuracy: { type: Number, required: true },
         submittedAt: { type: Date, default: Date.now },
+        score: { type: Number, required: true },
+
     },
     { timestamps: true }
 );
