@@ -103,8 +103,8 @@ const submissionController = {
             // Get start of the week
             const now = new Date();
             const startOfWeek = new Date(now);
-            startOfWeek.setHours(0, 0, 0, 0);
-            startOfWeek.setDate(now.getDate() - now.getDay());
+            // startOfWeek.setHours(0, 0, 0, 0);
+            // startOfWeek.setDate(now.getDate() - now.getDay());
 
             // Create new submission
             const submissionPromise = Submission.create({
@@ -132,20 +132,24 @@ const submissionController = {
                 { new: true }
             );
 
-            const userUpdatePromise = User.findByIdAndUpdate(
-                userId,
+            // Update weeklyScores properly
+            const userUpdatePromise = User.bulkWrite([
                 {
-                    $inc: { totalScore: score },
-                    $addToSet: { listenedLessons: { lesson: lessonId, listenedAt: now } },
-                    $push: {
-                        weeklyScores: {
-                            $each: [{ weekStart: startOfWeek, score }],
-                            $position: 0,
-                        },
-                    },
+                    updateOne: {
+                        filter: { _id: userId, "weeklyScores.weekStart": startOfWeek },
+                        update: { $inc: { "weeklyScores.$.score": score, totalScore: score } }
+                    }
                 },
-                { new: true, upsert: true }
-            );
+                {
+                    updateOne: {
+                        filter: { _id: userId, "weeklyScores.weekStart": { $ne: startOfWeek } },
+                        update: {
+                            $push: { weeklyScores: { weekStart: startOfWeek, score } },
+                            $inc: { totalScore: score }
+                        }
+                    }
+                }
+            ]);
 
             await Promise.all([submissionPromise, lessonUpdatePromise, userUpdatePromise]);
 
