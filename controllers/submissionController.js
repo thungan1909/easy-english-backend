@@ -161,13 +161,13 @@ const submissionController = {
 
     getTopScores: async (req, res) => {
         try {
-            const { lessonId } = req.params;
+            const { lessonId } = req.query;
 
             if (!mongoose.Types.ObjectId.isValid(lessonId)) {
                 return res.status(400).json({ message: "Invalid lesson ID." });
             }
 
-            const lesson = await Lesson.findById(lessonId).populate("topScores.user", "username avatarUrl");
+            const lesson = await Lesson.findById(lessonId).populate("topScores.user", "username fullName avatarUrl");
 
             if (!lesson) {
                 return res.status(404).json({ message: "Lesson not found" });
