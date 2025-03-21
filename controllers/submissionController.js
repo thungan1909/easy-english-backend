@@ -103,8 +103,6 @@ const submissionController = {
             // Get start of the week
             const now = new Date();
             const startOfWeek = new Date(now);
-            // startOfWeek.setHours(0, 0, 0, 0);
-            // startOfWeek.setDate(now.getDate() - now.getDay());
 
             // Create new submission
             const submissionPromise = Submission.create({
@@ -147,6 +145,18 @@ const submissionController = {
                             $push: { weeklyScores: { weekStart: startOfWeek, score } },
                             $inc: { totalScore: score }
                         }
+                    }
+                },
+                {
+                    updateOne: {
+                        filter: { _id: userId, "listenedLessons.lesson": lessonId },
+                        update: { $set: { "listenedLessons.$.listenedAt": now } }
+                    }
+                },
+                {
+                    updateOne: {
+                        filter: { _id: userId, "listenedLessons.lesson": { $ne: lessonId } },
+                        update: { $push: { listenedLessons: { lesson: lessonId, listenedAt: now } } }
                     }
                 }
             ]);
