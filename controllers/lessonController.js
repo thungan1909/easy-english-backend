@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 
 const lessonController = {
     generateLessonCode: async () => {
-        const lastLesson = await Lesson.findOne().sort({ createdAt: -1 }); // Find the latest lesson
+        const lastLesson = await Lesson.findOne().sort({ createdAt: -1 });
         const index = lastLesson ? parseInt(lastLesson.code.replace("ES", ""), 10) + 1 : 0;
         return `ES${index}`;
     },
@@ -13,6 +13,7 @@ const lessonController = {
     createLesson: async (req, res) => {
         try {
             const { title, content, wordsWithHint, wordsWithoutHint, description, source, imageFile, audioFile } = req.body;
+
             if (!imageFile || !audioFile) {
                 return res.status(400).json({ message: "Image and audio files are required." });
             }
@@ -20,11 +21,11 @@ const lessonController = {
                 return res.status(400).json({ message: "Title, content, and words are required." });
             }
 
-
             const userId = req.user?.id;
             if (!userId) {
                 return res.status(401).json({ message: "Unauthorized: No creator specified." });
             }
+
             const user = await User.findById(userId).select("username");
             if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -53,7 +54,7 @@ const lessonController = {
 
     getListLesson: async (req, res) => {
         try {
-            const lessons = await Lesson.find().populate("creator", "username"); // Fetch lessons with creator username
+            const lessons = await Lesson.find().populate("creator", "username");
             res.status(200).json(lessons);
         } catch (err) {
             console.error("Error fetching lessons:", err);

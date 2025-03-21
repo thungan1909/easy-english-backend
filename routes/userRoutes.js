@@ -15,5 +15,8 @@ router.post("/update-avatar", authMiddleware,
     userController.updateAvatar
 );
 
+router.get("/ids", userController.getUsersByIds); // Fetch multiple users by query param
+router.get("/:id", userController.getUserById); // Fetch a single user by ID
+
 
 module.exports = router;

@@ -12,7 +12,6 @@ const submissionSchema = new mongoose.Schema(
         accuracy: { type: Number, required: true },
         submittedAt: { type: Date, default: Date.now },
         score: { type: Number, required: true },
-
     },
     { timestamps: true }
 );

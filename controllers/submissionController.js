@@ -35,7 +35,7 @@ const submissionController = {
                 }
             }
         }
-        // const accuracy = blankCount > 0 ? ((correctCount / blankCount) * 100).toFixed(2) : "0.00";
+
         const accuracy = blankCount > 0 ? Number(((correctCount / blankCount) * 100).toFixed(2)) : 0;
 
         return {
@@ -87,20 +87,27 @@ const submissionController = {
             if (!lessonId || ![original_array, result_array, user_array].every(arr => Array.isArray(arr) && arr.length)) {
                 return res.status(400).json({ message: "Invalid input data" });
             }
+            if (![user_array, result_array, original_array].every(arr => arr.length === result_array.length)) {
+                return res.status(400).json({ message: "Arrays length mismatch" });
+            }
 
             const lesson = await Lesson.findById(lessonId);
             if (!lesson) {
                 return res.status(404).json({ message: "Lesson not found" });
             }
 
-            if (![user_array, result_array, original_array].every(arr => arr.length === result_array.length)) {
-                return res.status(400).json({ message: "Arrays length mismatch" });
-            }
-
+            // Calculate score
             const result = submissionController.calculateAccuracy(original_array, result_array, user_array);
             const score = submissionController.calculateScore(result.totalFilledBlanks, result.blankCount, result.correctAnswers);
 
-            const newSubmission = new Submission({
+            // Get start of the week
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            startOfWeek.setHours(0, 0, 0, 0);
+            startOfWeek.setDate(now.getDate() - now.getDay());
+
+            // Create new submission
+            const submissionPromise = Submission.create({
                 user: userId,
                 lesson: lessonId,
                 original_array,
@@ -109,29 +116,27 @@ const submissionController = {
                 correct_answers: result.correctAnswers,
                 total_filled_blanks: result.totalFilledBlanks,
                 accuracy: result.accuracy,
-                score: score,
+                score
             });
 
-            await newSubmission.save();
-
-            await Lesson.findByIdAndUpdate(
+            // Update lesson statistics (listenCount, listenedBy, topScores)
+            const lessonUpdatePromise = Lesson.findByIdAndUpdate(
                 lessonId,
                 {
                     $inc: { listenCount: 1 },
-                    $addToSet: { listenedBy: userId }
+                    $addToSet: { listenedBy: userId },
+                    $push: {
+                        topScores: { $each: [{ user: userId, score, accuracy: result.accuracy, submittedAt: now }], $position: 0 },
+                    }
                 },
                 { new: true }
             );
-            const now = new Date();
-            const startOfWeek = new Date(now);
-            startOfWeek.setHours(0, 0, 0, 0);
-            startOfWeek.setDate(now.getDate() - now.getDay());
 
-            await User.findByIdAndUpdate(
+            const userUpdatePromise = User.findByIdAndUpdate(
                 userId,
                 {
                     $inc: { totalScore: score },
-                    $addToSet: { listenedLessons: { lesson: lessonId, listenedAt: new Date() } },
+                    $addToSet: { listenedLessons: { lesson: lessonId, listenedAt: now } },
                     $push: {
                         weeklyScores: {
                             $each: [{ weekStart: startOfWeek, score }],
@@ -140,7 +145,9 @@ const submissionController = {
                     },
                 },
                 { new: true, upsert: true }
-            )
+            );
+
+            await Promise.all([submissionPromise, lessonUpdatePromise, userUpdatePromise]);
 
             return res.status(200).json({
                 message: "Submission received successfully",
@@ -148,6 +155,27 @@ const submissionController = {
             });
         } catch (err) {
             console.error("Error in listen Lesson:", err);
+            return res.status(500).json({ message: "Internal server error" });
+        }
+    },
+
+    getTopScores: async (req, res) => {
+        try {
+            const { lessonId } = req.params;
+
+            if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+                return res.status(400).json({ message: "Invalid lesson ID." });
+            }
+
+            const lesson = await Lesson.findById(lessonId).populate("topScores.user", "username avatarUrl");
+
+            if (!lesson) {
+                return res.status(404).json({ message: "Lesson not found" });
+            }
+
+            return res.status(200).json({ topScores: lesson.topScores });
+        } catch (err) {
+            console.error("Error fetching top scores:", err);
             return res.status(500).json({ message: "Internal server error" });
         }
     },

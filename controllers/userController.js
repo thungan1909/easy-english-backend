@@ -2,6 +2,44 @@ const User = require("../models/User");
 require("dotenv").config();
 
 const userController = {
+    getUserById: async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            if (!id) {
+                return res.status(400).json({ message: "User ID is required." });
+            }
+
+            const user = await User.findById(id).select("-password");
+
+            if (!user) {
+                return res.status(404).json({ message: "User not found." });
+            }
+
+            res.status(200).json(user);
+        } catch (err) {
+            console.error("Fetch User Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
+    getUsersByIds: async (req, res) => {
+        try {
+            const { ids } = req.query;
+
+            if (!ids) {
+                return res.status(400).json({ message: "User IDs are required." });
+            }
+
+            const userIds = ids.split(",");
+            const users = await User.find({ _id: { $in: userIds } }).select("-password");
+
+            res.status(200).json(users);
+        } catch (err) {
+            console.error("Fetch Users Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
 
     updateUserInfo: async (req, res) => {
         try {

@@ -13,7 +13,15 @@ const lessonSchema = new mongoose.Schema(
         creator: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         source: { type: String },
         listenCount: { type: Number, default: 0 },
-        listenedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+        listenedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        topScores: [
+            {
+                user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+                score: { type: Number, required: true },
+                accuracy: { type: Number, required: true },
+                submittedAt: { type: Date, default: Date.now }
+            }
+        ]
     },
     { timestamps: true }
 );
