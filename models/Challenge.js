@@ -46,6 +46,11 @@ const ChallengeSchema = new mongoose.Schema(
                 message: "End date must be after or equal to start date",
             },
         },
+        timeLeft: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
         isCompleted: {
             type: Boolean,
             default: false,
@@ -55,14 +60,12 @@ const ChallengeSchema = new mongoose.Schema(
             default: 0,
             min: 0,
         },
+
         lessons: [
             {
-                id: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: "Lesson",
-                    required: true,
-                },
-                title: { type: String, required: true },
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Lesson",
+                required: true,
             }
         ],
         participants: [

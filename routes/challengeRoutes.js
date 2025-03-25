@@ -13,4 +13,7 @@ router.post("/create",
     challengeController.createChallenge
 );
 
+router.get("/list/inquiry", challengeController.getListChallenge);
+router.get("/:id", challengeController.getChallengeById);
+
 module.exports = router;
