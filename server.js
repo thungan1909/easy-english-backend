@@ -10,7 +10,7 @@ const lessonRoutes = require("./routes/lessonRoutes");
 const userRoutes = require("./routes/userRoutes");
 const submissionRoutes = require("./routes/submissionRoutes");
 const leaderboardRoutes = require("./routes/leaderboardRoutes");
-
+const challengeRoutes = require("./routes/challengeRoutes");
 
 const corsOptions = {
     origin: process.env.CLIENT_URL, // Allow frontend origin
@@ -36,6 +36,7 @@ app.use("/v1/lesson", lessonRoutes)
 app.use("/v1/user", userRoutes)
 app.use("/v1/submission", submissionRoutes)
 app.use("/v1/leaderboard", leaderboardRoutes);
+app.use("/v1/challenge", challengeRoutes);
 
 // Start the Server
 const PORT = process.env.PORT || 5000;

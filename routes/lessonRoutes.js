@@ -13,6 +13,16 @@ router.post("/create",
     lessonController.createLesson
 );
 
+router.put("/edit/:id",
+    upload.fields([{ name: "imageFile" }, { name: "audioFile" }]), authMiddleware,
+    lessonController.editLesson
+);
+
+router.delete("/delete/:id",
+    authMiddleware,
+    lessonController.deleteLesson
+);
+
 router.get("/list/inquiry", lessonController.getListLesson);
 router.get("/:id", lessonController.getLessonById);
 

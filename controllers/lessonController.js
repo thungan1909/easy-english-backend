@@ -14,9 +14,7 @@ const lessonController = {
         try {
             const { title, content, wordsWithHint, wordsWithoutHint, description, source, imageFile, audioFile } = req.body;
 
-            if (!imageFile || !audioFile) {
-                return res.status(400).json({ message: "Image and audio files are required." });
-            }
+
             if (!title || !content || !wordsWithoutHint || !wordsWithHint) {
                 return res.status(400).json({ message: "Title, content, and words are required." });
             }
@@ -52,6 +50,73 @@ const lessonController = {
         }
     },
 
+    editLesson: async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            const { title, content, wordsWithHint, wordsWithoutHint, description, source, imageFile, audioFile } = req.body;
+
+
+            if (!title || !content || !wordsWithoutHint || !wordsWithHint) {
+                return res.status(400).json({ message: "Title, content, and words are required." });
+            }
+
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({ message: "Unauthorized: No creator specified." });
+            }
+
+            const user = await User.findById(userId).select("username");
+            if (!user) return res.status(404).json({ message: "User not found" });
+
+            const updatedLesson = await Lesson.findByIdAndUpdate(
+                id,
+                { title, content, description, wordsWithHint, wordsWithoutHint, imageFile, audioFile, source },
+                { new: true }
+            );
+
+            if (!updatedLesson) {
+                return res.status(404).json({ message: "Lesson not found." });
+            }
+
+            res.status(200).json({ message: "Lesson updated successfully.", lesson: updatedLesson });
+        } catch (err) {
+            console.error("Edit lesson Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
+    deleteLesson: async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            if (!id) {
+                return res.status(400).json({ message: "Lesson ID is required." });
+            }
+
+            const lesson = await Lesson.findById(id);
+            if (!lesson) {
+                return res.status(404).json({ message: "Lesson not found." });
+            }
+
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({ message: "Unauthorized: No user specified." });
+            }
+
+            if (lesson.creator.toString() !== userId) {
+                return res.status(403).json({ message: "Forbidden: You do not have permission to delete this lesson." });
+            }
+
+            await Lesson.findByIdAndDelete(id);
+
+            res.status(200).json({ message: "Lesson deleted successfully." });
+        } catch (err) {
+            console.error("Delete lesson Error:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
     getListLesson: async (req, res) => {
         try {
             const lessons = await Lesson.find().populate("creator", "username");
@@ -82,8 +147,6 @@ const lessonController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
-
-
 }
 
 module.exports = lessonController;
