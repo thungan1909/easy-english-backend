@@ -164,7 +164,6 @@ const submissionController = {
             await Promise.all([submissionPromise, lessonUpdatePromise, userUpdatePromise]);
 
             return res.status(200).json({
-                message: "Submission received successfully",
                 ...result, score,
             });
         } catch (err) {
