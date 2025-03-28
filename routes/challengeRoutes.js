@@ -12,8 +12,9 @@ router.post("/create",
     upload.fields([{ name: "imageFile" }]), authMiddleware,
     challengeController.createChallenge
 );
-
-router.get("/list/inquiry", challengeController.getListChallenge);
 router.get("/:id", challengeController.getChallengeById);
+router.get("/list/inquiry", challengeController.getListChallenge);
+router.get("/get-by-lesson/:id", challengeController.getChallengeByLessonId);
+router.put("/list/update", challengeController.updateChallengesMutation)
 
 module.exports = router;

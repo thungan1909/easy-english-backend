@@ -96,7 +96,6 @@ const submissionController = {
                 return res.status(404).json({ message: "Lesson not found" });
             }
 
-            // Calculate score
             const result = submissionController.calculateAccuracy(original_array, result_array, user_array);
             const score = submissionController.calculateScore(result.totalFilledBlanks, result.blankCount, result.correctAnswers);
 
@@ -104,8 +103,7 @@ const submissionController = {
             const now = new Date();
             const startOfWeek = new Date(now);
 
-            // Create new submission
-            const submissionPromise = Submission.create({
+            const submissionResponse = {
                 user: userId,
                 lesson: lessonId,
                 original_array,
@@ -115,7 +113,8 @@ const submissionController = {
                 total_filled_blanks: result.totalFilledBlanks,
                 accuracy: result.accuracy,
                 score
-            });
+            }
+            const submissionPromise = Submission.create(submissionResponse);
 
             // Update lesson statistics (listenCount, listenedBy, topScores)
             const lessonUpdatePromise = Lesson.findByIdAndUpdate(
@@ -165,7 +164,7 @@ const submissionController = {
 
             return res.status(200).json({
                 message: "Submission received successfully",
-                ...result, score,
+                ...submissionResponse
             });
         } catch (err) {
             console.error("Error in listen Lesson:", err);

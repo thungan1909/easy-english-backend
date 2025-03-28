@@ -3,6 +3,29 @@ const User = require("../models/User");
 const mongoose = require("mongoose");
 
 const challengeController = {
+    isValidObjectId: (id) => {
+        return typeof id === "string" && mongoose.Types.ObjectId.isValid(id);
+    },
+    getChallengeById: async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return res.status(400).json({ message: "Invalid challenge ID." });
+            }
+
+            const challenge = await Challenge.findById(id).populate("creator", "username");
+
+            if (!challenge) {
+                return res.status(404).json({ message: "Challenge not found." });
+            }
+
+            res.status(200).json(challenge);
+        } catch (err) {
+            console.error("Error fetching challenge by ID:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
     getListChallenge: async (req, res) => {
         try {
             const lessons = await Challenge.find().populate("creator", "username");
@@ -13,40 +36,28 @@ const challengeController = {
         }
     },
 
-    getChallengeById: async (req, res) => {
+    getChallengeByLessonId: async (req, res) => {
         try {
             const { id } = req.params;
 
             if (!mongoose.Types.ObjectId.isValid(id)) {
-                return res.status(400).json({ message: "Invalid Challenge ID." });
+                return res.status(400).json({ message: "Invalid Lesson ID." });
             }
+            const lessonObjectId = new mongoose.Types.ObjectId(id);
 
-            // const challenge = await Challenge.findById(id).populate("creator", "username").populate({
-            //     path: "lessons.id",
-            //     model: "Lesson", // Ensure this matches your Lesson model name
-            // });
-            const challenge = await Challenge.findById(id)
+            const challenges = await Challenge.find({ lessons: lessonObjectId })
                 .populate("creator", "username")
-                .populate("lessons"); // Automatically fetch full lesson details
+                .populate("lessons");
 
-            if (!challenge) {
-                return res.status(404).json({ message: "Challenge not found." });
+
+            if (!challenges || challenges.length === 0) {
+                return res.status(200).json({
+                    message: "No challenge found for this lesson.",
+                    exists: false,
+                });
             }
-            res.status(200).json(challenge);
 
-            // Format response to include full lesson details
-            // const formattedChallenge = {
-            //     ...challenge.toObject(),
-            //     lessons: challenge.lessons.map((lesson) => ({
-            //         id: lesson.id._id, // Extract ObjectId
-            //         title: lesson.id.title, // Extract full title
-            //         description: lesson.id.description, // Include other lesson details
-            //         podcastUrl: lesson.id.podcastUrl, // If lessons have podcast URLs
-            //         duration: lesson.id.duration, // Example additional field
-            //     })),
-            // };
-
-            // res.status(200).json(formattedChallenge);
+            res.status(200).json({ exists: challenges.length > 0, challenges });
         } catch (err) {
             console.error("Error fetching Challenge by ID:", err);
             res.status(500).json({ message: "Internal Server Error" });
@@ -63,7 +74,6 @@ const challengeController = {
                 });
             }
 
-            // Validate startDate and endDate
             const start = new Date(startDate);
             const end = new Date(endDate);
             if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -72,10 +82,8 @@ const challengeController = {
             if (end < start) {
                 return res.status(400).json({ message: "End date must be after or equal to start date." });
             }
-            // Convert timeLeft to hours (optional: you can use days/minutes as needed)
-            const timeLeft = Math.floor((end - start) / (1000 * 60 * 60)); // Convert to hours
+            const timeLeft = Math.floor((end - start) / (1000 * 60 * 60));
 
-            // Validate coinAward and coinFee (ensure they are non-negative)
             if (coinAward < 0 || coinFee < 0) {
                 return res.status(400).json({ message: "Award coin fee coin must be 0 or greater." });
             }
@@ -97,10 +105,10 @@ const challengeController = {
                 coinFee,
                 imageFile,
                 creator: userId,
-                timeLeft, // Store calculated time left (in hours)
+                timeLeft,
                 startDate: start,
                 endDate: end,
-                lessons: lessonIds, // ✅ Store only lesson IDs
+                lessons: lessonIds,
                 participantsCount: 0,
                 isCompleted: false,
                 completedUsersCount: 0,
@@ -115,6 +123,79 @@ const challengeController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
+    updateChallengesMutation: async (req, res) => {
+        try {
+            let challenges = req.body;
+
+            if (typeof challenges === "object" && !Array.isArray(challenges)) {
+                challenges = Object.values(challenges).filter(item => typeof item === "object" && item._id);
+            }
+
+            if (!Array.isArray(challenges) || challenges.length === 0) {
+                return res.status(400).json({ message: "Invalid data format. Expected a non-empty array of challenges." });
+            }
+
+            // Convert ObjectId fields
+            challenges.forEach((challenge) => {
+                if (challengeController.isValidObjectId(challenge._id)) {
+                    challenge._id = new mongoose.Types.ObjectId(challenge._id);
+                }
+
+                if (challenge.participants) {
+                    challenge.participants.forEach((participant) => {
+                        if (participant.userId && typeof participant.userId === "string" && challengeController.isValidObjectId(participant.userId)) {
+                            participant.userId = new mongoose.Types.ObjectId(participant.userId);
+                        }
+
+                        if (participant.lessonResults) {
+                            if (Array.isArray(participant.lessonResults)) {
+                                participant.lessonResults = participant.lessonResults
+                                    .filter((result) => challengeController.isValidObjectId(result))
+                                    .map((result) => new mongoose.Types.ObjectId(result));
+                            } else if (challengeController.isValidObjectId(participant.lessonResults)) {
+                                participant.lessonResults = new mongoose.Types.ObjectId(participant.lessonResults);
+                            }
+                        }
+                    });
+                }
+            });
+
+            const bulkOperations = [];
+
+            challenges.forEach((challenge) => {
+                challenge.participants.forEach((participant) => {
+                    bulkOperations.push({
+                        updateOne: {
+                            filter: {
+                                _id: challenge._id,
+                                "participants.userId": participant.userId
+                            },
+                            update: {
+                                $push: { "participants.$.lessonResults": { $each: participant.lessonResults || [] } },
+                                $set: {
+                                    "participants.$.totalScore": participant.totalScore,
+                                    "participants.$.averageAccuracy": {
+                                        $divide: [
+                                            { $sum: "$participants.lessonResults.accuracy" }, // Tổng accuracy
+                                            { $size: "$participants.lessonResults" } // Số bài đã làm
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                });
+            });
+
+            await Challenge.bulkWrite(bulkOperations);
+
+            res.status(200).json({ message: "Challenges updated successfully!" });
+        } catch (error) {
+            console.error("Error updating challenges:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    }
 
 
 }

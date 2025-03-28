@@ -60,7 +60,6 @@ const ChallengeSchema = new mongoose.Schema(
             default: 0,
             min: 0,
         },
-
         lessons: [
             {
                 type: mongoose.Schema.Types.ObjectId,
@@ -71,9 +70,9 @@ const ChallengeSchema = new mongoose.Schema(
         participants: [
             {
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-                username: { type: String, required: true },
-                joinedAt: { type: Date, default: Date.now },
-                completedAt: { type: Date, default: null },
+                totalScore: { type: Number, default: 0, },
+                averageAccuracy: { type: Number, default: 0, },
+                lessonResults: [{ type: mongoose.Schema.Types.ObjectId, ref: "Submission" }], // <== ARRAY
             },
         ],
         averageScore: {
@@ -96,6 +95,7 @@ const ChallengeSchema = new mongoose.Schema(
             type: Date,
             default: Date.now,
         },
+
     },
     { timestamps: true }
 );
