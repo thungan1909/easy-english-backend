@@ -163,8 +163,12 @@ const submissionController = {
             await Promise.all([submissionPromise, lessonUpdatePromise, userUpdatePromise]);
 
             return res.status(200).json({
+<<<<<<< HEAD
                 message: "Submission received successfully",
                 ...submissionResponse
+=======
+                ...result, score,
+>>>>>>> e75fd1e69facd542a7c18b16cc19e021a72dc38e
             });
         } catch (err) {
             console.error("Error in listen Lesson:", err);

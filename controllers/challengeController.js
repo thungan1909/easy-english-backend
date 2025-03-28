@@ -197,6 +197,29 @@ const challengeController = {
         }
     }
 
+    getChallengesByLessonId: async (req, res) => {
+        try {
+            const { id } = req.params;
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return res.status(400).json({ message: "Invalid Lesson ID." });
+            }
+    
+            const challenges = await Challenge.find({ lessons: id })
+                .populate("creator", "username")
+                .populate("lessons");
+    
+            if (!challenges.length) {
+                return res.status(404).json({ message: "No challenges found for this lesson." });
+            }
+    
+            res.status(200).json(challenges);
+        } catch (err) {
+            console.error("Error fetching Challenges by Lesson ID:", err);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+    
+
 
 }
 
