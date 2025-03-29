@@ -1,103 +1,116 @@
 const mongoose = require("mongoose");
 
 const ChallengeSchema = new mongoose.Schema(
-    {
-        title: {
-            type: String,
-            required: true,
-            trim: true,
-            maxlength: 100,
-        },
-        description: {
-            type: String,
-            trim: true,
-            maxlength: 4000,
-        },
-        coinAward: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        coinFee: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        imageFile: {
-            type: String,
-            required: true,
-        },
-        creator: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-        },
-        startDate: {
-            type: Date,
-            required: true,
-        },
-        endDate: {
-            type: Date,
-            required: true,
-            validate: {
-                validator: function (value) {
-                    return !this.startDate || value >= this.startDate;
-                },
-                message: "End date must be after or equal to start date",
-            },
-        },
-        timeLeft: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        isCompleted: {
-            type: Boolean,
-            default: false,
-        },
-        participantsCount: {
-            type: Number,
-            default: 0,
-            min: 0,
-        },
-        lessons: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Lesson",
-                required: true,
-            }
-        ],
-        participants: [
-            {
-                userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-                totalScore: { type: Number, default: 0, },
-                averageAccuracy: { type: Number, default: 0, },
-                lessonResults: [{ type: mongoose.Schema.Types.ObjectId, ref: "Submission" }], // <== ARRAY
-            },
-        ],
-        averageScore: {
-            type: Number,
-            default: 0,
-        },
-        averageAccuracy: {
-            type: Number,
-            default: 0,
-        },
-        completedUsersCount: {
-            type: Number,
-            default: 0,
-        },
-        totalCompletionTime: {
-            type: Number,
-            default: 0,
-        },
-        createdAt: {
-            type: Date,
-            default: Date.now,
-        },
-
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
     },
-    { timestamps: true }
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 4000,
+    },
+    coinAward: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    coinFee: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    imageFile: {
+      type: String,
+      required: true,
+    },
+    creator: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+      validate: {
+        validator: function (value) {
+          return !this.startDate || value >= this.startDate;
+        },
+        message: "End date must be after or equal to start date",
+      },
+    },
+    timeLeft: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    isCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    participantsCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lessons: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Lesson",
+        required: true,
+      },
+    ],
+    participants: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        totalScore: { type: Number, default: 0 },
+        averageAccuracy: { type: Number, default: 0 },
+        lessonResults: [
+          {
+            submissionId: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Submission",
+            },
+            lessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
+            score: { type: Number },
+            accuracy: { type: Number },
+          },
+        ],
+      },
+    ],
+    averageScore: {
+      type: Number,
+      default: 0,
+    },
+    averageAccuracy: {
+      type: Number,
+      default: 0,
+    },
+    completedUsersCount: {
+      type: Number,
+      default: 0,
+    },
+    totalCompletionTime: {
+      type: Number,
+      default: 0,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { timestamps: true }
 );
 
 const Challenge = mongoose.model("Challenge", ChallengeSchema);
