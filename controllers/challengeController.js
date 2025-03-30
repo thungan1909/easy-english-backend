@@ -6,6 +6,7 @@ const challengeController = {
   isValidObjectId: (id) => {
     return typeof id === "string" && mongoose.Types.ObjectId.isValid(id);
   },
+
   getChallengeById: async (req, res) => {
     try {
       const { id } = req.params;
@@ -29,6 +30,7 @@ const challengeController = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
   getListChallenge: async (req, res) => {
     try {
       const lessons = await Challenge.find().populate("creator", "username");
@@ -171,80 +173,22 @@ const challengeController = {
 
       const bulkOperations = [];
 
-      challenges.forEach((challenge) => {
-        if (!challengeController.isValidObjectId(challenge._id)) return;
-
+      for (const challenge of challenges) {
+        if (!challengeController.isValidObjectId(challenge._id)) continue;
         challenge._id = new mongoose.Types.ObjectId(challenge._id);
 
         if (Array.isArray(challenge.participants)) {
-          challenge.participants.forEach((participant) => {
+          for (const participant of challenge.participants) {
             if (
               !participant.userId ||
               !challengeController.isValidObjectId(participant.userId)
             )
-              return;
+              continue;
             participant.userId = new mongoose.Types.ObjectId(
               participant.userId
             );
 
-            if (participant.lessonResults) {
-              if (!Array.isArray(participant.lessonResults)) {
-                participant.lessonResults = [participant.lessonResults];
-              }
-
-              participant.lessonResults.forEach((result) => {
-                if (!challengeController.isValidObjectId(result.lessonId))
-                  return;
-
-                result.lessonId = new mongoose.Types.ObjectId(result.lessonId);
-                result.submissionId = challengeController.isValidObjectId(
-                  result.submissionId
-                )
-                  ? new mongoose.Types.ObjectId(result.submissionId)
-                  : null;
-
-                console.log(result, "Updating lesson result");
-
-                
-
-                // 🔹 Kiểm tra nếu lessonId đã tồn tại, thì cập nhật nó
-                bulkOperations.push({
-                  updateOne: {
-                    filter: {
-                      _id: challenge._id,
-                      "participants.userId": participant.userId,
-                      "participants.lessonResults.lessonId": result.lessonId, // Kiểm tra xem lessonId đã tồn tại chưa
-                    },
-                    update: {
-                      $set: {
-                        "participants.$.lessonResults.$[elem]": result, // Cập nhật nếu đã có
-                      },
-                    },
-                    arrayFilters: [{ "elem.lessonId": result.lessonId }],
-                  },
-                });
-
-                // 🔹 Nếu lessonId chưa có, thêm mới vào danh sách (tránh trùng lặp)
-                bulkOperations.push({
-                  updateOne: {
-                    filter: {
-                      _id: challenge._id,
-                      "participants.userId": participant.userId,
-                      "participants.lessonResults.lessonId": {
-                        $ne: result.lessonId,
-                      }, // Nếu lessonId chưa có
-                    },
-                    update: {
-                      $push: {
-                        "participants.$.lessonResults": result, // Thêm mới lesson
-                      },
-                    },
-                  },
-                });
-              });
-            }
-
-            // 🔹 Nếu participant chưa tồn tại, thêm mới vào danh sách
+            // 🔹 Ensure participant exists first
             bulkOperations.push({
               updateOne: {
                 filter: {
@@ -257,22 +201,69 @@ const challengeController = {
                       userId: participant.userId,
                       totalScore: participant.totalScore || 0,
                       averageAccuracy: participant.averageAccuracy || 0,
-                      lessonResults: participant.lessonResults || [],
+                      lessonResults: [],
                     },
                   },
                 },
               },
             });
 
-            // 🔹 Cập nhật tổng điểm và độ chính xác trung bình
-            const totalAccuracy =
+            if (Array.isArray(participant.lessonResults)) {
+              for (const result of participant.lessonResults) {
+                if (!challengeController.isValidObjectId(result.lessonId))
+                  continue;
+
+                result.lessonId = new mongoose.Types.ObjectId(result.lessonId);
+                result.submissionId = challengeController.isValidObjectId(
+                  result.submissionId
+                )
+                  ? new mongoose.Types.ObjectId(result.submissionId)
+                  : null;
+
+                // 🔹 Ensure lessonResult exists before updating
+                bulkOperations.push({
+                  updateOne: {
+                    filter: {
+                      _id: challenge._id,
+                      "participants.userId": participant.userId,
+                    },
+                    update: {
+                      $addToSet: {
+                        "participants.$.lessonResults": result,
+                      },
+                    },
+                  },
+                });
+
+                // 🔹 Update existing lesson result (fixing the positional operator issue)
+                bulkOperations.push({
+                  updateOne: {
+                    filter: {
+                      _id: challenge._id,
+                      "participants.userId": participant.userId,
+                      "participants.lessonResults.lessonId": result.lessonId,
+                    },
+                    update: {
+                      $set: {
+                        "participants.$.lessonResults.$[elem]": result,
+                      },
+                    },
+                    arrayFilters: [{ "elem.lessonId": result.lessonId }],
+                  },
+                });
+              }
+            }
+
+            // 🔹 Update participant stats (totalScore & averageAccuracy)
+            const totalAccuracyPerParticipant =
               participant.lessonResults?.reduce(
                 (sum, result) => sum + (result.accuracy || 0),
                 0
               ) || 0;
+
             participant.averageAccuracy =
               participant.lessonResults?.length > 0
-                ? totalAccuracy / participant.lessonResults.length
+                ? totalAccuracyPerParticipant / participant.lessonResults.length
                 : 0;
 
             bulkOperations.push({
@@ -283,20 +274,61 @@ const challengeController = {
                 },
                 update: {
                   $set: {
-                    "averageScore": 
-                    "averageAccuracy": 
                     "participants.$.totalScore": participant.totalScore || 0,
+                    "participants.$.totalAccuracy":
+                      totalAccuracyPerParticipant || 0,
+                    "participants.$.averageScore":
+                      totalAccuracyPerParticipant || 0,
                     "participants.$.averageAccuracy":
                       participant.averageAccuracy,
                   },
                 },
               },
             });
-          });
-        }
-      });
 
-      console.log(JSON.stringify(bulkOperations, null, 2), "bulkOperations");
+            // 🔹 Update challenge-level stats
+            const participantCount = challenge.participants.length || 1;
+            const totalScore = challenge.participants.reduce(
+              (sum, p) => sum + (p.totalScore || 0),
+              0
+            );
+            const totalAccuracy = challenge.participants.reduce(
+              (sum, p) => sum + (p.totalScore || 0),
+              0
+            );
+            // Tính tổng số lần submission (tổng số bài đã nộp của tất cả participants)
+            const totalSubmissions = challenge.participants.reduce(
+              (sum, p) => sum + (p.lessonResults?.length || 0),
+              0
+            );
+            console.log("totalSubmissions", totalSubmissions);
+            console.log(participantCount, totalScore, totalAccuracy, "total");
+
+            const averageScore =
+              totalSubmissions > 0 ? totalScore / totalSubmissions : 0;
+            const averageAccuracy =
+              totalSubmissions > 0 ? totalAccuracy / totalSubmissions : 0;
+
+            console.log(
+              averageScore,
+              "averageScore",
+              averageAccuracy,
+              "averageAccuracy"
+            );
+            bulkOperations.push({
+              updateOne: {
+                filter: { _id: challenge._id },
+                update: {
+                  $set: {
+                    averageScore: averageScore,
+                    averageAccuracy: averageAccuracy,
+                  },
+                },
+              },
+            });
+          }
+        }
+      }
 
       if (bulkOperations.length > 0) {
         await Challenge.bulkWrite(bulkOperations);

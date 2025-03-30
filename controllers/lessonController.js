@@ -194,9 +194,17 @@ const lessonController = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
   getLessonsBatch: async (req, res) => {
     try {
       const { ids } = req.query;
+
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: No user specified." });
+      }
 
       if (!ids) {
         return res.status(400).json({ message: "Missing 'ids' parameter" });
@@ -217,7 +225,9 @@ const lessonController = {
 
       const submissions = await Submission.find({
         lessonId: { $in: lessonIds },
+        userId,
       }).populate("lessonId", "title");
+
       // Fetch latest submissions for these lessons by the user
 
       // Format results by merging lesson details with submission results

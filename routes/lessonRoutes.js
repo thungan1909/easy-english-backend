@@ -25,7 +25,7 @@ router.put(
 router.delete("/delete/:id", authMiddleware, lessonController.deleteLesson);
 
 router.get("/list/inquiry", lessonController.getListLesson);
-router.get("/batch", lessonController.getLessonsBatch);
+router.get("/batch", authMiddleware, lessonController.getLessonsBatch);
 
 router.get("/:id", lessonController.getLessonById);
 

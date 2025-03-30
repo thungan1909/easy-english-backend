@@ -66,6 +66,8 @@ const ChallengeSchema = new mongoose.Schema(
           required: true,
         },
         totalScore: { type: Number, default: 0 },
+        totalAccuracy: { type: Number, default: 0 },
+        averageScore: { type: Number, default: 0 },
         averageAccuracy: { type: Number, default: 0 },
         lessonResults: [
           {
@@ -85,6 +87,14 @@ const ChallengeSchema = new mongoose.Schema(
       default: 0,
     },
     averageAccuracy: {
+      type: Number,
+      default: 0,
+    },
+    totalScore: {
+      type: Number,
+      default: 0,
+    },
+    totalSumission: {
       type: Number,
       default: 0,
     },
