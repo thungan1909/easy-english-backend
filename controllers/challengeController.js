@@ -136,8 +136,6 @@ const challengeController = {
         startDate: start,
         endDate: end,
         lessons: lessonIds,
-        participantsCount: 0,
-        isCompleted: false,
         completedUsersCount: 0,
         totalCompletionTime: 0,
         averageScore: 0,
@@ -206,6 +204,8 @@ const challengeController = {
                   : null;
 
                 console.log(result, "Updating lesson result");
+
+                
 
                 // 🔹 Kiểm tra nếu lessonId đã tồn tại, thì cập nhật nó
                 bulkOperations.push({
@@ -283,6 +283,8 @@ const challengeController = {
                 },
                 update: {
                   $set: {
+                    "averageScore": 
+                    "averageAccuracy": 
                     "participants.$.totalScore": participant.totalScore || 0,
                     "participants.$.averageAccuracy":
                       participant.averageAccuracy,

@@ -267,24 +267,61 @@ const submissionController = {
         return res.status(400).json({ message: "Invalid user ID." });
       }
 
-      const submissions = await Submission.find({
-        lessonId,
-        userId,
-      })
-        .populate("userId", "name email")
+      const submission = await Submission.findOne({ lessonId, userId })
+        .populate("userId", "username email")
+        .populate("lessonId", "title")
         .sort({ createdAt: -1 })
-        .limit(1);
-      if (!submissions.length) {
-        return res
-          .status(404)
-          .json({ message: "No submissions found for this lesson." });
+        .lean();
+
+      if (!submission) {
+        return res.status(200).json({ submission: null }); // Trả về object rỗng thay vì lỗi
       }
 
-      return res.status(200).json(submissions[0]);
+      const formattedSubmission = {
+        ...submission,
+        user: submission.userId, // Đổi userId thành user
+        lesson: submission.lessonId, // Đổi lessonId thành lesson
+      };
+      delete formattedSubmission.userId; // Xóa userId cũ
+      delete formattedSubmission.lessonId; // Xóa lessonId cũ
+
+      return res.status(200).json({ submission: formattedSubmission });
     } catch (err) {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
+  // getLessonsBatch: async (req, res) => {
+  //   try {
+  //     console.log("Request received:", req.query); // Debugging
+
+  //     const { ids } = req.query;
+  //     console.log(ids, req.query, "getLessonsBatch");
+
+  //     if (!ids) {
+  //       return res.status(400).json({ message: "Missing lesson IDs." });
+  //     }
+
+  //     const lessonIds = ids.split(",");
+
+  //     const isValidIds = lessonIds.every((id) =>
+  //       mongoose.Types.ObjectId.isValid(id)
+  //     );
+  //     if (!isValidIds) {
+  //       return res.status(400).json({ message: "Invalid lesson IDs." });
+  //     }
+
+  //     const lessons = await Lesson.find({ _id: { $in: lessonIds } }).populate(
+  //       "creator",
+  //       "username"
+  //     );
+
+  //     res.status(200).json(lessons);
+  //   } catch (err) {
+  //     console.error("Error fetching lessons:", err);
+  //     res.status(500).json({ message: "Internal Server Error" });
+  //   }
+  // },
 };
 
 module.exports = submissionController;

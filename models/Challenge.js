@@ -51,15 +51,6 @@ const ChallengeSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    isCompleted: {
-      type: Boolean,
-      default: false,
-    },
-    participantsCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
     lessons: [
       {
         type: mongoose.Schema.Types.ObjectId,
