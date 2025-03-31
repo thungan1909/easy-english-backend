@@ -1,5 +1,7 @@
 const Challenge = require("../models/Challenge");
+const Submission = require("../models/Submission");
 const User = require("../models/User");
+
 const mongoose = require("mongoose");
 
 const challengeController = {
@@ -10,7 +12,6 @@ const challengeController = {
   getChallengeById: async (req, res) => {
     try {
       const { id } = req.params;
-
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid challenge ID." });
       }
@@ -18,13 +19,20 @@ const challengeController = {
       const challenge = await Challenge.findById(id).populate(
         "creator",
         "username"
-      );
+      ).populate("participants.userId", "username fullName");
 
       if (!challenge) {
         return res.status(404).json({ message: "Challenge not found." });
       }
 
-      res.status(200).json(challenge);
+      const challengeData = challenge.toObject();
+      challengeData.participants = challengeData.participants.map((participant) => ({
+        ...participant,
+        user: participant.userId,
+        userId: undefined,
+      }));
+
+      res.status(200).json(challengeData);
     } catch (err) {
       console.error("Error fetching challenge by ID:", err);
       res.status(500).json({ message: "Internal Server Error" });
@@ -102,12 +110,17 @@ const challengeController = {
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({ message: "Invalid date format." });
       }
+
       if (end < start) {
         return res
           .status(400)
           .json({ message: "End date must be after or equal to start date." });
       }
       const timeLeft = Math.floor((end - start) / (1000 * 60 * 60));
+
+      console.log(start, end, "start - end")
+      console.log(Math.floor((end - start)), "Math.floor((end - start)")
+      console.log(timeLeft, "timeLeft")
 
       if (coinAward < 0 || coinFee < 0) {
         return res
@@ -116,7 +129,6 @@ const challengeController = {
       }
 
       const lessonIds = lessons.map((lesson) => lesson.id);
-
       const userId = req.user?.id;
       if (!userId) {
         return res
@@ -126,6 +138,54 @@ const challengeController = {
 
       const user = await User.findById(userId).select("username");
       if (!user) return res.status(404).json({ message: "User not found" });
+
+      const submissions = await Submission.find({ lessonId: { $in: lessonIds } });
+      // Calculate overall challenge stats
+      let totalScore = 0;
+      let totalAccuracy = 0;
+      let totalSubmission = submissions.length;
+
+      const userSubmissions = {};
+
+      submissions.forEach((submission) => {
+        const { userId, lessonId, score, accuracy } = submission;
+        if (!userSubmissions[userId]) {
+          userSubmissions[userId] = {
+            totalScore: 0,
+            totalAccuracy: 0,
+            lessonResults: [],
+            submissionCount: 0,
+          };
+        }
+        userSubmissions[userId].totalScore += score;
+        userSubmissions[userId].totalAccuracy += accuracy;
+        userSubmissions[userId].submissionCount += 1;
+        userSubmissions[userId].lessonResults.push({ lessonId, score, accuracy });
+      });
+
+
+      const participants = Object.entries(userSubmissions).map(([userId, data]) => {
+        const lessonCount = data.lessonResults.length;
+        const averageScore = lessonCount > 0 ? data.totalScore / lessonCount : 0;
+        const averageAccuracy = lessonCount > 0 ? data.totalAccuracy / lessonCount : 0;
+
+        totalScore += data.totalScore;
+        totalAccuracy += data.totalAccuracy;
+
+        return {
+          userId,
+          totalScore: data.totalScore,
+          totalAccuracy: data.totalAccuracy,
+          averageScore,
+          averageAccuracy,
+          totalSubmission: data.submissionCount,
+          lessonResults: data.lessonResults,
+        };
+      });
+
+      const averageScore = totalSubmission > 0 ? totalScore / totalSubmission : 0;
+      const averageAccuracy = totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
+
 
       const newChallenge = await Challenge.create({
         title,
@@ -138,10 +198,12 @@ const challengeController = {
         startDate: start,
         endDate: end,
         lessons: lessonIds,
-        completedUsersCount: 0,
-        totalCompletionTime: 0,
-        averageScore: 0,
-        averageAccuracy: 0,
+        participants,
+        totalScore,
+        totalAccuracy,
+        totalSubmission,
+        averageScore,
+        averageAccuracy,
       });
 
       res.status(201).json({
@@ -188,7 +250,6 @@ const challengeController = {
               participant.userId
             );
 
-            // 🔹 Ensure participant exists first
             bulkOperations.push({
               updateOne: {
                 filter: {
@@ -200,6 +261,8 @@ const challengeController = {
                     participants: {
                       userId: participant.userId,
                       totalScore: participant.totalScore || 0,
+                      totalAccuracy: participant.totalAccuracy || 0,
+                      averageScore: participant.averageScore || 0,
                       averageAccuracy: participant.averageAccuracy || 0,
                       lessonResults: [],
                     },
@@ -220,7 +283,6 @@ const challengeController = {
                   ? new mongoose.Types.ObjectId(result.submissionId)
                   : null;
 
-                // 🔹 Ensure lessonResult exists before updating
                 bulkOperations.push({
                   updateOne: {
                     filter: {
@@ -235,7 +297,6 @@ const challengeController = {
                   },
                 });
 
-                // 🔹 Update existing lesson result (fixing the positional operator issue)
                 bulkOperations.push({
                   updateOne: {
                     filter: {
@@ -254,16 +315,26 @@ const challengeController = {
               }
             }
 
-            // 🔹 Update participant stats (totalScore & averageAccuracy)
-            const totalAccuracyPerParticipant =
+
+            const totalScorePerParticipant = participant.lessonResults?.reduce(
+              (sum, result) => sum + (result.score || 0),
+              0
+            ) || 0;
+
+            participant.totalAccuracy =
               participant.lessonResults?.reduce(
                 (sum, result) => sum + (result.accuracy || 0),
                 0
               ) || 0;
 
+            participant.averageScore =
+              participant.lessonResults?.length > 0
+                ? totalScorePerParticipant / participant.lessonResults.length
+                : 0;
+
             participant.averageAccuracy =
               participant.lessonResults?.length > 0
-                ? totalAccuracyPerParticipant / participant.lessonResults.length
+                ? participant.totalAccuracy / participant.lessonResults.length
                 : 0;
 
             bulkOperations.push({
@@ -274,54 +345,44 @@ const challengeController = {
                 },
                 update: {
                   $set: {
-                    "participants.$.totalScore": participant.totalScore || 0,
-                    "participants.$.totalAccuracy":
-                      totalAccuracyPerParticipant || 0,
-                    "participants.$.averageScore":
-                      totalAccuracyPerParticipant || 0,
-                    "participants.$.averageAccuracy":
-                      participant.averageAccuracy,
+                    "participants.$.totalScore": totalScorePerParticipant,
+                    "participants.$.totalAccuracy": participant.totalAccuracy,
+                    "participants.$.averageScore": participant.averageScore,
+                    "participants.$.averageAccuracy": participant.averageAccuracy,
                   },
                 },
               },
             });
 
-            // 🔹 Update challenge-level stats
-            const participantCount = challenge.participants.length || 1;
             const totalScore = challenge.participants.reduce(
               (sum, p) => sum + (p.totalScore || 0),
               0
             );
+
             const totalAccuracy = challenge.participants.reduce(
-              (sum, p) => sum + (p.totalScore || 0),
+              (sum, p) => sum + (p.totalAccuracy || 0),
               0
             );
-            // Tính tổng số lần submission (tổng số bài đã nộp của tất cả participants)
-            const totalSubmissions = challenge.participants.reduce(
+            const totalSubmission = challenge.participants.reduce(
               (sum, p) => sum + (p.lessonResults?.length || 0),
               0
             );
-            console.log("totalSubmissions", totalSubmissions);
-            console.log(participantCount, totalScore, totalAccuracy, "total");
 
             const averageScore =
-              totalSubmissions > 0 ? totalScore / totalSubmissions : 0;
+              totalSubmission > 0 ? totalScore / totalSubmission : 0;
             const averageAccuracy =
-              totalSubmissions > 0 ? totalAccuracy / totalSubmissions : 0;
+              totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
 
-            console.log(
-              averageScore,
-              "averageScore",
-              averageAccuracy,
-              "averageAccuracy"
-            );
             bulkOperations.push({
               updateOne: {
                 filter: { _id: challenge._id },
                 update: {
                   $set: {
-                    averageScore: averageScore,
-                    averageAccuracy: averageAccuracy,
+                    totalScore,
+                    totalAccuracy,
+                    totalSubmission,
+                    averageScore,
+                    averageAccuracy,
                   },
                 },
               },

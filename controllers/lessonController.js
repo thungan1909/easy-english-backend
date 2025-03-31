@@ -175,7 +175,6 @@ const lessonController = {
 
   getLessonById: async (req, res) => {
     try {
-      console.log("getLessonById");
       const { id } = req.params;
 
       if (!mongoose.Types.ObjectId.isValid(id)) {

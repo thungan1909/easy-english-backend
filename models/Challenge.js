@@ -94,21 +94,13 @@ const ChallengeSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    totalSumission: {
+    totalAccuracy: {
       type: Number,
       default: 0,
     },
-    completedUsersCount: {
+    totalSubmission: {
       type: Number,
       default: 0,
-    },
-    totalCompletionTime: {
-      type: Number,
-      default: 0,
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
     },
   },
   { timestamps: true }
