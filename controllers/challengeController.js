@@ -16,23 +16,22 @@ const challengeController = {
         return res.status(400).json({ message: "Invalid challenge ID." });
       }
 
-      const challenge = await Challenge.findById(id).populate(
-        "creator",
-        "username"
-      ).populate("participants.userId", "username fullName");
+      const challenge = await Challenge.findById(id).populate("creator", "username")
+        .populate("participants.userId", "username fullName")
+        .lean();
 
       if (!challenge) {
         return res.status(404).json({ message: "Challenge not found." });
       }
 
-      const challengeData = challenge.toObject();
-      challengeData.participants = challengeData.participants.map((participant) => ({
-        ...participant,
-        user: participant.userId,
-        userId: undefined,
+      challenge.participants = challenge.participants.map(({ userId, ...rest }) => ({
+        userId: userId._id,
+        username: userId.username,
+        fullName: userId.fullName,
+        ...rest,
       }));
 
-      res.status(200).json(challengeData);
+      res.status(200).json(challenge);
     } catch (err) {
       console.error("Error fetching challenge by ID:", err);
       res.status(500).json({ message: "Internal Server Error" });
@@ -118,9 +117,6 @@ const challengeController = {
       }
       const timeLeft = Math.floor((end - start) / (1000 * 60 * 60));
 
-      console.log(start, end, "start - end")
-      console.log(Math.floor((end - start)), "Math.floor((end - start)")
-      console.log(timeLeft, "timeLeft")
 
       if (coinAward < 0 || coinFee < 0) {
         return res
@@ -140,7 +136,7 @@ const challengeController = {
       if (!user) return res.status(404).json({ message: "User not found" });
 
       const submissions = await Submission.find({ lessonId: { $in: lessonIds } });
-      // Calculate overall challenge stats
+
       let totalScore = 0;
       let totalAccuracy = 0;
       let totalSubmission = submissions.length;
