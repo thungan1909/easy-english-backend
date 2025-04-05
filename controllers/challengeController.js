@@ -16,7 +16,8 @@ const challengeController = {
         return res.status(400).json({ message: "Invalid challenge ID." });
       }
 
-      const challenge = await Challenge.findById(id).populate("creator", "username")
+      const challenge = await Challenge.findById(id)
+        .populate("creator", "username")
         .populate("participants.userId", "username fullName")
         .lean();
 
@@ -24,12 +25,14 @@ const challengeController = {
         return res.status(404).json({ message: "Challenge not found." });
       }
 
-      challenge.participants = challenge.participants.map(({ userId, ...rest }) => ({
-        userId: userId._id,
-        username: userId.username,
-        fullName: userId.fullName,
-        ...rest,
-      }));
+      challenge.participants = challenge.participants.map(
+        ({ userId, ...rest }) => ({
+          userId: userId._id,
+          username: userId.username,
+          fullName: userId.fullName,
+          ...rest,
+        })
+      );
 
       res.status(200).json(challenge);
     } catch (err) {
@@ -117,14 +120,12 @@ const challengeController = {
       }
       const timeLeft = Math.floor((end - start) / (1000 * 60 * 60));
 
-
       if (coinAward < 0 || coinFee < 0) {
         return res
           .status(400)
           .json({ message: "Award coin fee coin must be 0 or greater." });
       }
 
-      const lessonIds = lessons.map((lesson) => lesson.id);
       const userId = req.user?.id;
       if (!userId) {
         return res
@@ -135,7 +136,9 @@ const challengeController = {
       const user = await User.findById(userId).select("username");
       if (!user) return res.status(404).json({ message: "User not found" });
 
-      const submissions = await Submission.find({ lessonId: { $in: lessonIds } });
+      const submissions = await Submission.find({
+        lessonId: { $in: lessons },
+      });
 
       let totalScore = 0;
       let totalAccuracy = 0;
@@ -156,32 +159,40 @@ const challengeController = {
         userSubmissions[userId].totalScore += score;
         userSubmissions[userId].totalAccuracy += accuracy;
         userSubmissions[userId].submissionCount += 1;
-        userSubmissions[userId].lessonResults.push({ lessonId, score, accuracy });
+        userSubmissions[userId].lessonResults.push({
+          lessonId,
+          score,
+          accuracy,
+        });
       });
 
+      const participants = Object.entries(userSubmissions).map(
+        ([userId, data]) => {
+          const lessonCount = data.lessonResults.length;
+          const averageScore =
+            lessonCount > 0 ? data.totalScore / lessonCount : 0;
+          const averageAccuracy =
+            lessonCount > 0 ? data.totalAccuracy / lessonCount : 0;
 
-      const participants = Object.entries(userSubmissions).map(([userId, data]) => {
-        const lessonCount = data.lessonResults.length;
-        const averageScore = lessonCount > 0 ? data.totalScore / lessonCount : 0;
-        const averageAccuracy = lessonCount > 0 ? data.totalAccuracy / lessonCount : 0;
+          totalScore += data.totalScore;
+          totalAccuracy += data.totalAccuracy;
 
-        totalScore += data.totalScore;
-        totalAccuracy += data.totalAccuracy;
+          return {
+            userId,
+            totalScore: data.totalScore,
+            totalAccuracy: data.totalAccuracy,
+            averageScore,
+            averageAccuracy,
+            totalSubmission: data.submissionCount,
+            lessonResults: data.lessonResults,
+          };
+        }
+      );
 
-        return {
-          userId,
-          totalScore: data.totalScore,
-          totalAccuracy: data.totalAccuracy,
-          averageScore,
-          averageAccuracy,
-          totalSubmission: data.submissionCount,
-          lessonResults: data.lessonResults,
-        };
-      });
-
-      const averageScore = totalSubmission > 0 ? totalScore / totalSubmission : 0;
-      const averageAccuracy = totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
-
+      const averageScore =
+        totalSubmission > 0 ? totalScore / totalSubmission : 0;
+      const averageAccuracy =
+        totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
 
       const newChallenge = await Challenge.create({
         title,
@@ -193,7 +204,7 @@ const challengeController = {
         timeLeft,
         startDate: start,
         endDate: end,
-        lessons: lessonIds,
+        lessons,
         participants,
         totalScore,
         totalAccuracy,
@@ -311,11 +322,11 @@ const challengeController = {
               }
             }
 
-
-            const totalScorePerParticipant = participant.lessonResults?.reduce(
-              (sum, result) => sum + (result.score || 0),
-              0
-            ) || 0;
+            const totalScorePerParticipant =
+              participant.lessonResults?.reduce(
+                (sum, result) => sum + (result.score || 0),
+                0
+              ) || 0;
 
             participant.totalAccuracy =
               participant.lessonResults?.reduce(
@@ -344,7 +355,8 @@ const challengeController = {
                     "participants.$.totalScore": totalScorePerParticipant,
                     "participants.$.totalAccuracy": participant.totalAccuracy,
                     "participants.$.averageScore": participant.averageScore,
-                    "participants.$.averageAccuracy": participant.averageAccuracy,
+                    "participants.$.averageAccuracy":
+                      participant.averageAccuracy,
                   },
                 },
               },
