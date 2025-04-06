@@ -223,6 +223,12 @@ const challengeController = {
     }
   },
 
+  updateChalllenge: asyn (req, res) => {
+    try {
+      const {id}  = req.params;
+      
+    }
+  }
   updateChallengesMutation: async (req, res) => {
     try {
       let challenges = req.body;

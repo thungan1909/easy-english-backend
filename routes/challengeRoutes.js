@@ -8,14 +8,22 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-router.post("/create",
-    upload.fields([{ name: "imageFile" }]), authMiddleware,
-    challengeController.createChallenge
+router.post(
+  "/create",
+  upload.fields([{ name: "imageFile" }]),
+  authMiddleware,
+  challengeController.createChallenge
 );
 router.get("/:id", challengeController.getChallengeById);
 router.get("/list/inquiry", challengeController.getListChallenge);
 router.get("/get-by-lesson/:id", challengeController.getChallengeByLessonId);
-router.put("/list/update", challengeController.updateChallengesMutation)
+router.put("/list/update", challengeController.updateChallengesMutation);
 // router.get("/get-by-lesson/:id", challengeController.getChallengesByLessonId);
+router.put(
+  "/edit/:id",
+  upload.fields([{ name: "imageFile" }, { name: "audioFile" }]),
+  authMiddleware,
+  lessonController.editLesson
+);
 
 module.exports = router;
