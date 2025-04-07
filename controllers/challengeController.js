@@ -223,12 +223,72 @@ const challengeController = {
     }
   },
 
-  updateChalllenge: asyn (req, res) => {
+  updateChalllenge: async (req, res) => {
     try {
-      const {id}  = req.params;
-      
+      const { id } = req.params;
+      let {
+        title,
+        description,
+        coinAward,
+        coinFee,
+        imageFile,
+        startDate,
+        endDate,
+        timeLeft,
+        lessons,
+        participants,
+        averageScore,
+        averafeAccuracy,
+        totalScore,
+        totalSubmission,
+      } = req.body;
+
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: No creator specified." });
+      }
+
+      const user = await User.findById(userId).select("username");
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const updatedChallenge = await Challenge.findByIdAndUpdate(
+        id,
+        {
+          title,
+          description,
+          coinAward,
+          coinFee,
+          imageFile,
+          startDate,
+          endDate,
+          timeLeft,
+          lessons,
+          participants,
+          averageScore,
+          averafeAccuracy,
+          totalScore,
+          totalSubmission,
+        },
+        {
+          new: true,
+        }
+      );
+
+      if (!updatedChallenge) {
+        return res.status(404).json({ message: "Challenge not found." });
+      }
+      res.status(200).json({
+        message: "Challenge updated successfully.",
+        challenge: updatedChallenge,
+      });
+    } catch (err) {
+      console.error("Challenge updated Error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
     }
-  }
+  },
+
   updateChallengesMutation: async (req, res) => {
     try {
       let challenges = req.body;
