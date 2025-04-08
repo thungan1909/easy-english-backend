@@ -23,7 +23,7 @@ router.put(
   "/edit/:id",
   upload.fields([{ name: "imageFile" }, { name: "audioFile" }]),
   authMiddleware,
-  lessonController.editLesson
+  challengeController.updateChalllenge
 );
 
 module.exports = router;
