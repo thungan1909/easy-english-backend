@@ -217,9 +217,8 @@ const lessonController = {
         return res.status(400).json({ message: "Invalid lesson IDs." });
       }
 
-      // Fetch lessons
       const lessons = await Lesson.find({ _id: { $in: lessonIds } })
-        .select("title") // Select only necessary fields
+        .select("title")
         .lean();
 
       const submissions = await Submission.find({
@@ -227,9 +226,7 @@ const lessonController = {
         userId,
       }).populate("lessonId", "title");
 
-      // Fetch latest submissions for these lessons by the user
 
-      // Format results by merging lesson details with submission results
       const lessonsWithResults = lessons.map((lesson) => {
         const userSubmission = submissions.find(
           (sub) => sub.lessonId?._id.toString() === lesson._id.toString()

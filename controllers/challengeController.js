@@ -223,10 +223,10 @@ const challengeController = {
     }
   },
 
-  updateChalllenge: async (req, res) => {
+  updateChallenge: async (req, res) => {
     try {
       const { id } = req.params;
-      let {
+      const {
         title,
         description,
         coinAward,
@@ -234,24 +234,84 @@ const challengeController = {
         imageFile,
         startDate,
         endDate,
-        timeLeft,
-        lessons,
-        participants,
-        averageScore,
-        averafeAccuracy,
-        totalScore,
-        totalSubmission,
+        lessons
       } = req.body;
 
       const userId = req.user?.id;
       if (!userId) {
-        return res
-          .status(401)
-          .json({ message: "Unauthorized: No creator specified." });
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const user = await User.findById(userId).select("username");
-      if (!user) return res.status(404).json({ message: "User not found" });
+      const challenge = await Challenge.findById(id);
+      if (!challenge) {
+        return res.status(404).json({ message: "Challenge not found" });
+      }
+
+      let timeLeft = challenge.timeLeft;
+      if (endDate && endDate !== challenge.endDate.toISOString()) {
+        const now = new Date();
+        const newEnd = new Date(endDate);
+        const diff = newEnd.getTime() - now.getTime();
+        timeLeft = Math.max(Math.ceil(diff / (1000 * 60 * 60)), 0);
+        console.log(timeLeft, "timeLeft")
+      }
+
+
+      const submissions = await Submission.find({
+        lessonId: { $in: lessons },
+      });
+
+      const participantMap = new Map();
+
+      for (const sub of submissions) {
+        const key = sub.userId.toString();
+
+        if (!participantMap.has(key)) {
+          participantMap.set(key, {
+            userId: sub.userId,
+            totalScore: 0,
+            totalAccuracy: 0,
+            lessonResults: [],
+          });
+        }
+
+        const participant = participantMap.get(key);
+
+        participant.totalScore += sub.score;
+        participant.totalAccuracy += sub.accuracy;
+        participant.lessonResults.push({
+          submissionId: sub._id,
+          lessonId: sub.lessonId,
+          score: sub.score,
+          accuracy: sub.accuracy,
+        });
+      }
+
+      const participants = Array.from(participantMap.values()).map((p) => {
+        const lessonCount = p.lessonResults.length;
+        return {
+          ...p,
+          averageScore: lessonCount > 0 ? p.totalScore / lessonCount : 0,
+          averageAccuracy: lessonCount > 0
+            ? p.totalAccuracy / lessonCount
+            : 0,
+        };
+      });
+
+      const totalScore = participants.reduce((sum, p) => sum + p.totalScore, 0);
+      const totalAccuracy = participants.reduce(
+        (sum, p) => sum + p.totalAccuracy,
+        0
+      );
+      const totalSubmission = participants.reduce(
+        (sum, p) => sum + p.lessonResults.length,
+        0
+      );
+
+      const averageScore =
+        totalSubmission > 0 ? totalScore / totalSubmission : 0;
+      const averageAccuracy =
+        totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
 
       const updatedChallenge = await Challenge.findByIdAndUpdate(
         id,
@@ -264,27 +324,23 @@ const challengeController = {
           startDate,
           endDate,
           timeLeft,
-          lessons,
           participants,
-          averageScore,
-          averafeAccuracy,
+          lessons,
           totalScore,
+          totalAccuracy,
           totalSubmission,
+          averageScore,
+          averageAccuracy,
         },
-        {
-          new: true,
-        }
+        { new: true }
       );
 
-      if (!updatedChallenge) {
-        return res.status(404).json({ message: "Challenge not found." });
-      }
       res.status(200).json({
-        message: "Challenge updated successfully.",
+        message: "Challenge updated successfully",
         challenge: updatedChallenge,
       });
     } catch (err) {
-      console.error("Challenge updated Error:", err);
+      console.error("updateChallenge error:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },

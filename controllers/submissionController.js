@@ -134,7 +134,6 @@ const submissionController = {
         result.correctAnswers
       );
 
-      // Get start of the week
       const now = new Date();
       const startOfWeek = new Date(now);
 
@@ -151,7 +150,6 @@ const submissionController = {
       };
       const submissionPromise = Submission.create(submissionResponse);
 
-      // Update lesson statistics (listenCount, listenedBy, topScores)
       const lessonUpdatePromise = Lesson.findByIdAndUpdate(
         lessonId,
         {
@@ -174,7 +172,6 @@ const submissionController = {
         { new: true }
       );
 
-      // Update weeklyScores properly
       const userUpdatePromise = User.bulkWrite([
         {
           updateOne: {
@@ -274,16 +271,16 @@ const submissionController = {
         .lean();
 
       if (!submission) {
-        return res.status(200).json({ submission: null }); // Trả về object rỗng thay vì lỗi
+        return res.status(200).json({ submission: null });
       }
 
       const formattedSubmission = {
         ...submission,
-        user: submission.userId, // Đổi userId thành user
-        lesson: submission.lessonId, // Đổi lessonId thành lesson
+        user: submission.userId,
+        lesson: submission.lessonId,
       };
-      delete formattedSubmission.userId; // Xóa userId cũ
-      delete formattedSubmission.lessonId; // Xóa lessonId cũ
+      delete formattedSubmission.userId;
+      delete formattedSubmission.lessonId;
 
       return res.status(200).json({ submission: formattedSubmission });
     } catch (err) {
@@ -291,37 +288,7 @@ const submissionController = {
     }
   },
 
-  // getLessonsBatch: async (req, res) => {
-  //   try {
-  //     console.log("Request received:", req.query); // Debugging
 
-  //     const { ids } = req.query;
-  //     console.log(ids, req.query, "getLessonsBatch");
-
-  //     if (!ids) {
-  //       return res.status(400).json({ message: "Missing lesson IDs." });
-  //     }
-
-  //     const lessonIds = ids.split(",");
-
-  //     const isValidIds = lessonIds.every((id) =>
-  //       mongoose.Types.ObjectId.isValid(id)
-  //     );
-  //     if (!isValidIds) {
-  //       return res.status(400).json({ message: "Invalid lesson IDs." });
-  //     }
-
-  //     const lessons = await Lesson.find({ _id: { $in: lessonIds } }).populate(
-  //       "creator",
-  //       "username"
-  //     );
-
-  //     res.status(200).json(lessons);
-  //   } catch (err) {
-  //     console.error("Error fetching lessons:", err);
-  //     res.status(500).json({ message: "Internal Server Error" });
-  //   }
-  // },
 };
 
 module.exports = submissionController;

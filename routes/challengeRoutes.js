@@ -18,12 +18,11 @@ router.get("/:id", challengeController.getChallengeById);
 router.get("/list/inquiry", challengeController.getListChallenge);
 router.get("/get-by-lesson/:id", challengeController.getChallengeByLessonId);
 router.put("/list/update", challengeController.updateChallengesMutation);
-// router.get("/get-by-lesson/:id", challengeController.getChallengesByLessonId);
 router.put(
-  "/edit/:id",
+  "/update/:id",
   upload.fields([{ name: "imageFile" }, { name: "audioFile" }]),
   authMiddleware,
-  challengeController.updateChalllenge
+  challengeController.updateChallenge
 );
 
 module.exports = router;

@@ -22,10 +22,10 @@ const leaderboardController = {
                         _id: "$_id",
                         username: { $first: "$username" },
                         avatarUrl: { $first: "$avatarUrl" },
-                        totalWeeklyScore: { $sum: "$weeklyScores.score" } // Sum instead of Max
+                        totalWeeklyScore: { $sum: "$weeklyScores.score" }
                     }
                 },
-                { $sort: { totalWeeklyScore: -1 } }, // Sort by total score
+                { $sort: { totalWeeklyScore: -1 } },
                 { $limit: 10 }
             ];
 
