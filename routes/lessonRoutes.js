@@ -16,17 +16,15 @@ router.post(
 );
 
 router.put(
-  "/edit/:id",
+  "/update/:id",
   upload.fields([{ name: "imageFile" }, { name: "audioFile" }]),
   authMiddleware,
-  lessonController.editLesson
+  lessonController.updateLesson
 );
 
 router.delete("/delete/:id", authMiddleware, lessonController.deleteLesson);
-
 router.get("/list/inquiry", lessonController.getListLesson);
 router.get("/batch", authMiddleware, lessonController.getLessonsBatch);
-
 router.get("/:id", lessonController.getLessonById);
 
 module.exports = router;

@@ -67,7 +67,7 @@ const lessonController = {
     }
   },
 
-  editLesson: async (req, res) => {
+  updateLesson: async (req, res) => {
     try {
       const { id } = req.params;
 
@@ -225,7 +225,6 @@ const lessonController = {
         lessonId: { $in: lessonIds },
         userId,
       }).populate("lessonId", "title");
-
 
       const lessonsWithResults = lessons.map((lesson) => {
         const userSubmission = submissions.find(

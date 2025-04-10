@@ -14,15 +14,15 @@ router.post(
   authMiddleware,
   challengeController.createChallenge
 );
-router.get("/:id", challengeController.getChallengeById);
-router.get("/list/inquiry", challengeController.getListChallenge);
-router.get("/get-by-lesson/:id", challengeController.getChallengeByLessonId);
-router.put("/list/update", challengeController.updateChallengesMutation);
 router.put(
   "/update/:id",
   upload.fields([{ name: "imageFile" }, { name: "audioFile" }]),
   authMiddleware,
   challengeController.updateChallenge
 );
+router.get("/:id", challengeController.getChallengeById);
+router.get("/list/inquiry", challengeController.getListChallenge);
+router.get("/get-by-lesson/:id", challengeController.getChallengeByLessonId);
+router.put("/list/update", challengeController.updateChallengesMutation);
 
 module.exports = router;
