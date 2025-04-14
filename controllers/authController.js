@@ -94,7 +94,7 @@ const authController = {
         }
     },
 
-    getVerifyCode: async (req, res) => {
+    sendVerificationCode: async (req, res) => {
         try {
             const { email } = req.body;
             const user = await User.findOne({ email });
@@ -159,7 +159,7 @@ const authController = {
         }
     },
 
-    getResetCode: async (req, res) => {
+    sendResetPasswordCode: async (req, res) => {
         try {
             const { email } = req.body;
 
@@ -180,7 +180,7 @@ const authController = {
         }
     },
 
-    verifyCodeResetPassword: async (req, res) => {
+    verifyResetPasswordCode: async (req, res) => {
         try {
             const { email, resetCode } = req.body;
             const user = await User.findOne({ email });
@@ -200,6 +200,32 @@ const authController = {
             res.status(200).json({ message: "Reset code verified successfully." });
         } catch (error) {
             console.error("Verify Reset Code Error:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
+    changePassword: async (req, res) => {
+        try {
+            const userId = req.user?.id;
+            const { currentPassword, newPassword } = req.body;
+
+            if (!userId || !currentPassword || !newPassword) {
+                return res.status(400).json({ message: "Missing required fields." });
+            }
+
+            const user = await User.findById(userId);
+            if (!user) return res.status(404).json({ message: "User not found." });
+
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) return res.status(401).json({ message: "Current password is incorrect." });
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            user.password = hashedPassword;
+            await user.save();
+
+            res.status(200).json({ message: "Password changed successfully." });
+        } catch (error) {
+            console.error("Change Password Error:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
     },

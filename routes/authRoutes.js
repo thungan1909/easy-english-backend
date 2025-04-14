@@ -4,17 +4,19 @@ const authMiddleware = require("../middlewares/authMiddleware");
 
 // Authentication
 router.post("/login", authController.loginUser)
-router.post("/sign-up", authController.registerUser)
-router.post("/check-exist-email", authController.checkExistEmail)
+router.post("/register", authController.registerUser)
+router.post("/check-email", authController.checkExistEmail);
 
-// Account Verification
-router.post("/verify-account", authController.verifyAccount)
-router.post("/get-verify-code", authController.getVerifyCode)
+// Email Verification
+router.post("/email/send-code", authController.sendVerificationCode);
+router.post("/email/verify", authController.verifyAccount);
 
 // Password Reset
-router.post("/get-reset-code", authController.getResetCode)
-router.post("/verify-reset-code", authController.verifyCodeResetPassword)
-router.post("/reset-password", authController.resetPassword)
+router.post("/password/send-reset-code", authController.sendResetPasswordCode);
+router.post("/password/verify-reset-code", authController.verifyResetPasswordCode);
+router.post("/password/reset", authController.resetPassword);
+
+router.post("/password/change", authMiddleware, authController.changePassword)
 
 // Get User Profile
 router.get("/me", authMiddleware, authController.me)
