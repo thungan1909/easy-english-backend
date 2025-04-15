@@ -20,6 +20,12 @@ router.put(
   authMiddleware,
   challengeController.updateChallenge
 );
+
+router.delete(
+  "/delete/:id",
+  authMiddleware,
+  challengeController.deleteChallenge
+);
 router.get("/:id", challengeController.getChallengeById);
 router.get("/list/inquiry", challengeController.getListChallenge);
 router.get("/get-by-lesson/:id", challengeController.getChallengeByLessonId);

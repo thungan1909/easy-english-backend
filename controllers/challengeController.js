@@ -234,7 +234,7 @@ const challengeController = {
         imageFile,
         startDate,
         endDate,
-        lessons
+        lessons,
       } = req.body;
 
       const userId = req.user?.id;
@@ -253,9 +253,8 @@ const challengeController = {
         const newEnd = new Date(endDate);
         const diff = newEnd.getTime() - now.getTime();
         timeLeft = Math.max(Math.ceil(diff / (1000 * 60 * 60)), 0);
-        console.log(timeLeft, "timeLeft")
+        console.log(timeLeft, "timeLeft");
       }
-
 
       const submissions = await Submission.find({
         lessonId: { $in: lessons },
@@ -292,9 +291,7 @@ const challengeController = {
         return {
           ...p,
           averageScore: lessonCount > 0 ? p.totalScore / lessonCount : 0,
-          averageAccuracy: lessonCount > 0
-            ? p.totalAccuracy / lessonCount
-            : 0,
+          averageAccuracy: lessonCount > 0 ? p.totalAccuracy / lessonCount : 0,
         };
       });
 
@@ -528,6 +525,42 @@ const challengeController = {
       res.status(200).json({ message: "Challenges updated successfully!" });
     } catch (error) {
       console.error("Error updating challenges:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  deleteChallenge: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({ message: "Challenge ID is required." });
+      }
+
+      const challenge = await Challenge.findById(id);
+      if (!challenge) {
+        return res.status(404).json({ message: "Challenge not found." });
+      }
+
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: No user specified." });
+      }
+
+      if (challenge.creator.toString() !== userId) {
+        return res.status(403).json({
+          message:
+            "Forbidden: You do not have permission to delete this challenge.",
+        });
+      }
+
+      await Challenge.findByIdAndDelete(id);
+
+      res.status(200).json({ message: "Challenge deleted successfully." });
+    } catch (err) {
+      console.error("Delete challenge Error:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },

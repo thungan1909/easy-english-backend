@@ -15,7 +15,7 @@ const challengeRoutes = require("./routes/challengeRoutes");
 const corsOptions = {
     origin: process.env.CLIENT_URL, // Allow frontend origin
     credentials: true, // Allow cookies in CORS requests
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
 };
 
