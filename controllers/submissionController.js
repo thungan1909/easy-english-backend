@@ -128,6 +128,7 @@ const submissionController = {
         result_array,
         user_array
       );
+
       const score = submissionController.calculateScore(
         result.totalFilledBlanks,
         result.blankCount,
@@ -137,40 +138,96 @@ const submissionController = {
       const now = new Date();
       const startOfWeek = new Date(now);
 
-      const submissionResponse = {
-        userId,
-        lessonId,
-        original_array,
-        user_array,
-        result_array,
-        correct_answers: result.correctAnswers,
-        total_filled_blanks: result.totalFilledBlanks,
-        accuracy: result.accuracy,
-        score,
-      };
-      const submissionPromise = Submission.create(submissionResponse);
+      const existingSubmission = await Submission.findOne({ userId, lessonId });
+      if (existingSubmission) {
+        // Update existing submission
+        await Submission.updateOne(
+          { _id: existingSubmission._id },
+          {
+            original_array,
+            user_array,
+            result_array,
+            correct_answers: result.correctAnswers,
+            total_filled_blanks: result.totalFilledBlanks,
+            accuracy: result.accuracy,
+            score,
+            submittedAt: now,
+          }
+        );
+      } else {
+        // Create new submission
+        await Submission.create({
+          userId,
+          lessonId,
+          original_array,
+          user_array,
+          result_array,
+          correct_answers: result.correctAnswers,
+          total_filled_blanks: result.totalFilledBlanks,
+          accuracy: result.accuracy,
+          score,
+          submittedAt: now,
+        });
+      }
+      // const submissionResponse = {
+      //   userId,
+      //   lessonId,
+      //   original_array,
+      //   user_array,
+      //   result_array,
+      //   correct_answers: result.correctAnswers,
+      //   total_filled_blanks: result.totalFilledBlanks,
+      //   accuracy: result.accuracy,
+      //   score,
+      // };
+      // const submissionPromise = Submission.create(submissionResponse);
+
+      // const lessonUpdatePromise = Lesson.findByIdAndUpdate(
+      //   lessonId,
+      //   {
+      //     $inc: { listenCount: 1 },
+      //     $addToSet: { listenedBy: userId },
+      //     $push: {
+      //       topScores: {
+      //         $each: [
+      //           {
+      //             user: userId,
+      //             score,
+      //             accuracy: result.accuracy,
+      //             submittedAt: now,
+      //           },
+      //         ],
+      //         $position: 0,
+      //       },
+      //     },
+      //   },
+      //   { new: true }
+      // );
 
       const lessonUpdatePromise = Lesson.findByIdAndUpdate(
         lessonId,
         {
           $inc: { listenCount: 1 },
           $addToSet: { listenedBy: userId },
-          $push: {
-            topScores: {
-              $each: [
-                {
-                  user: userId,
-                  score,
-                  accuracy: result.accuracy,
-                  submittedAt: now,
-                },
-              ],
-              $position: 0,
-            },
-          },
         },
         { new: true }
-      );
+      ).then(async (updatedLesson) => {
+        // Remove old topScore of this user
+        updatedLesson.topScores = updatedLesson.topScores.filter(
+          (entry) => entry.user.toString() !== userId.toString()
+        );
+
+        // Add updated score at the top
+        updatedLesson.topScores.unshift({
+          user: userId,
+          score,
+          accuracy: result.accuracy,
+          submittedAt: now,
+        });
+
+        // Save the updated lesson
+        return await updatedLesson.save();
+      });
 
       const userUpdatePromise = User.bulkWrite([
         {
@@ -213,14 +270,22 @@ const submissionController = {
       ]);
 
       await Promise.all([
-        submissionPromise,
+        // submissionPromise,
         lessonUpdatePromise,
         userUpdatePromise,
       ]);
 
       return res.status(200).json({
         message: "Submission received successfully",
-        ...submissionResponse,
+        userId,
+        lessonId,
+        original_array,
+        user_array,
+        result_array,
+        correct_answers: result.correctAnswers,
+        total_filled_blanks: result.totalFilledBlanks,
+        accuracy: result.accuracy,
+        score,
       });
     } catch (err) {
       console.error("Error in listen Lesson:", err);
@@ -230,7 +295,7 @@ const submissionController = {
 
   getTopScores: async (req, res) => {
     try {
-      const { lessonId } = req.query;
+      const { id: lessonId } = req.params;
 
       if (!mongoose.Types.ObjectId.isValid(lessonId)) {
         return res.status(400).json({ message: "Invalid lesson ID." });
@@ -254,7 +319,7 @@ const submissionController = {
 
   getLessonResult: async (req, res) => {
     try {
-      const { lessonId } = req.query;
+      const { id: lessonId } = req.params;
       const userId = req.user?.id;
 
       if (!mongoose.Types.ObjectId.isValid(lessonId)) {

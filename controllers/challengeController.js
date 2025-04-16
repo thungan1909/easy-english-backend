@@ -341,7 +341,6 @@ const challengeController = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
-
   updateChallengesMutation: async (req, res) => {
     try {
       let challenges = req.body;
@@ -354,8 +353,7 @@ const challengeController = {
 
       if (!Array.isArray(challenges) || challenges.length === 0) {
         return res.status(400).json({
-          message:
-            "Invalid data format. Expected a non-empty array of challenges.",
+          message: "Invalid data format. Expected a non-empty array of challenges.",
         });
       }
 
@@ -363,159 +361,145 @@ const challengeController = {
 
       for (const challenge of challenges) {
         if (!challengeController.isValidObjectId(challenge._id)) continue;
-        challenge._id = new mongoose.Types.ObjectId(challenge._id);
+        const challengeId = new mongoose.Types.ObjectId(challenge._id);
 
-        if (Array.isArray(challenge.participants)) {
-          for (const participant of challenge.participants) {
-            if (
-              !participant.userId ||
-              !challengeController.isValidObjectId(participant.userId)
-            )
-              continue;
-            participant.userId = new mongoose.Types.ObjectId(
-              participant.userId
-            );
+        if (!Array.isArray(challenge.participants)) continue;
 
+        for (const participant of challenge.participants) {
+          if (
+            !participant.userId ||
+            !challengeController.isValidObjectId(participant.userId)
+          ) continue;
+
+          const userId = new mongoose.Types.ObjectId(participant.userId);
+
+          // Ensure participant exists in challenge
+          bulkOperations.push({
+            updateOne: {
+              filter: {
+                _id: challengeId,
+                "participants.userId": { $ne: userId },
+              },
+              update: {
+                $push: {
+                  participants: {
+                    userId,
+                    totalScore: 0,
+                    totalAccuracy: 0,
+                    averageScore: 0,
+                    averageAccuracy: 0,
+                    lessonResults: [],
+                  },
+                },
+              },
+            },
+          });
+
+          const lessonResults = Array.isArray(participant.lessonResults)
+            ? participant.lessonResults
+            : [];
+
+          for (const result of lessonResults) {
+            if (!challengeController.isValidObjectId(result.lessonId)) continue;
+
+            const lessonId = new mongoose.Types.ObjectId(result.lessonId);
+            const submissionId = challengeController.isValidObjectId(result.submissionId)
+              ? new mongoose.Types.ObjectId(result.submissionId)
+              : null;
+
+            const formattedResult = {
+              lessonId,
+              submissionId,
+              score: result.score,
+              accuracy: result.accuracy,
+            };
+
+            // Remove old result with same lessonId
             bulkOperations.push({
               updateOne: {
                 filter: {
-                  _id: challenge._id,
-                  "participants.userId": { $ne: participant.userId },
+                  _id: challengeId,
+                  "participants.userId": userId,
+                },
+                update: {
+                  $pull: {
+                    "participants.$.lessonResults": { lessonId },
+                  },
+                },
+              },
+            });
+
+            // Add new result
+            bulkOperations.push({
+              updateOne: {
+                filter: {
+                  _id: challengeId,
+                  "participants.userId": userId,
                 },
                 update: {
                   $push: {
-                    participants: {
-                      userId: participant.userId,
-                      totalScore: participant.totalScore || 0,
-                      totalAccuracy: participant.totalAccuracy || 0,
-                      averageScore: participant.averageScore || 0,
-                      averageAccuracy: participant.averageAccuracy || 0,
-                      lessonResults: [],
-                    },
-                  },
-                },
-              },
-            });
-
-            if (Array.isArray(participant.lessonResults)) {
-              for (const result of participant.lessonResults) {
-                if (!challengeController.isValidObjectId(result.lessonId))
-                  continue;
-
-                result.lessonId = new mongoose.Types.ObjectId(result.lessonId);
-                result.submissionId = challengeController.isValidObjectId(
-                  result.submissionId
-                )
-                  ? new mongoose.Types.ObjectId(result.submissionId)
-                  : null;
-
-                bulkOperations.push({
-                  updateOne: {
-                    filter: {
-                      _id: challenge._id,
-                      "participants.userId": participant.userId,
-                    },
-                    update: {
-                      $addToSet: {
-                        "participants.$.lessonResults": result,
-                      },
-                    },
-                  },
-                });
-
-                bulkOperations.push({
-                  updateOne: {
-                    filter: {
-                      _id: challenge._id,
-                      "participants.userId": participant.userId,
-                      "participants.lessonResults.lessonId": result.lessonId,
-                    },
-                    update: {
-                      $set: {
-                        "participants.$.lessonResults.$[elem]": result,
-                      },
-                    },
-                    arrayFilters: [{ "elem.lessonId": result.lessonId }],
-                  },
-                });
-              }
-            }
-
-            const totalScorePerParticipant =
-              participant.lessonResults?.reduce(
-                (sum, result) => sum + (result.score || 0),
-                0
-              ) || 0;
-
-            participant.totalAccuracy =
-              participant.lessonResults?.reduce(
-                (sum, result) => sum + (result.accuracy || 0),
-                0
-              ) || 0;
-
-            participant.averageScore =
-              participant.lessonResults?.length > 0
-                ? totalScorePerParticipant / participant.lessonResults.length
-                : 0;
-
-            participant.averageAccuracy =
-              participant.lessonResults?.length > 0
-                ? participant.totalAccuracy / participant.lessonResults.length
-                : 0;
-
-            bulkOperations.push({
-              updateOne: {
-                filter: {
-                  _id: challenge._id,
-                  "participants.userId": participant.userId,
-                },
-                update: {
-                  $set: {
-                    "participants.$.totalScore": totalScorePerParticipant,
-                    "participants.$.totalAccuracy": participant.totalAccuracy,
-                    "participants.$.averageScore": participant.averageScore,
-                    "participants.$.averageAccuracy":
-                      participant.averageAccuracy,
-                  },
-                },
-              },
-            });
-
-            const totalScore = challenge.participants.reduce(
-              (sum, p) => sum + (p.totalScore || 0),
-              0
-            );
-
-            const totalAccuracy = challenge.participants.reduce(
-              (sum, p) => sum + (p.totalAccuracy || 0),
-              0
-            );
-            const totalSubmission = challenge.participants.reduce(
-              (sum, p) => sum + (p.lessonResults?.length || 0),
-              0
-            );
-
-            const averageScore =
-              totalSubmission > 0 ? totalScore / totalSubmission : 0;
-            const averageAccuracy =
-              totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
-
-            bulkOperations.push({
-              updateOne: {
-                filter: { _id: challenge._id },
-                update: {
-                  $set: {
-                    totalScore,
-                    totalAccuracy,
-                    totalSubmission,
-                    averageScore,
-                    averageAccuracy,
+                    "participants.$.lessonResults": formattedResult,
                   },
                 },
               },
             });
           }
+
+          // Recalculate participant stats
+          const totalScore = lessonResults.reduce(
+            (sum, r) => sum + (r.score || 0),
+            0
+          );
+          const totalAccuracy = lessonResults.reduce(
+            (sum, r) => sum + (r.accuracy || 0),
+            0
+          );
+          const resultCount = lessonResults.length;
+
+          const averageScore = resultCount > 0 ? totalScore / resultCount : 0;
+          const averageAccuracy = resultCount > 0 ? totalAccuracy / resultCount : 0;
+
+          bulkOperations.push({
+            updateOne: {
+              filter: {
+                _id: challengeId,
+                "participants.userId": userId,
+              },
+              update: {
+                $set: {
+                  "participants.$.totalScore": totalScore,
+                  "participants.$.totalAccuracy": totalAccuracy,
+                  "participants.$.averageScore": averageScore,
+                  "participants.$.averageAccuracy": averageAccuracy,
+                },
+              },
+            },
+          });
         }
+
+        // Recalculate challenge-wide stats
+        const allResults = challenge.participants.flatMap(p => p.lessonResults || []);
+        const totalSubmission = allResults.length;
+        const totalScore = allResults.reduce((sum, r) => sum + (r.score || 0), 0);
+        const totalAccuracy = allResults.reduce((sum, r) => sum + (r.accuracy || 0), 0);
+
+        const averageScore = totalSubmission > 0 ? totalScore / totalSubmission : 0;
+        const averageAccuracy = totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
+
+        bulkOperations.push({
+          updateOne: {
+            filter: { _id: challengeId },
+            update: {
+              $set: {
+                totalScore,
+                totalAccuracy,
+                totalSubmission,
+                averageScore,
+                averageAccuracy,
+              },
+            },
+          },
+        });
       }
 
       if (bulkOperations.length > 0) {
@@ -528,6 +512,193 @@ const challengeController = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
+  // updateChallengesMutation: async (req, res) => {
+  //   try {
+  //     let challenges = req.body;
+
+  //     if (typeof challenges === "object" && !Array.isArray(challenges)) {
+  //       challenges = Object.values(challenges).filter(
+  //         (item) => typeof item === "object" && item._id
+  //       );
+  //     }
+
+  //     if (!Array.isArray(challenges) || challenges.length === 0) {
+  //       return res.status(400).json({
+  //         message:
+  //           "Invalid data format. Expected a non-empty array of challenges.",
+  //       });
+  //     }
+
+  //     const bulkOperations = [];
+
+  //     for (const challenge of challenges) {
+  //       if (!challengeController.isValidObjectId(challenge._id)) continue;
+  //       challenge._id = new mongoose.Types.ObjectId(challenge._id);
+
+  //       if (Array.isArray(challenge.participants)) {
+  //         for (const participant of challenge.participants) {
+  //           if (
+  //             !participant.userId ||
+  //             !challengeController.isValidObjectId(participant.userId)
+  //           )
+  //             continue;
+  //           participant.userId = new mongoose.Types.ObjectId(
+  //             participant.userId
+  //           );
+
+  //           bulkOperations.push({
+  //             updateOne: {
+  //               filter: {
+  //                 _id: challenge._id,
+  //                 "participants.userId": { $ne: participant.userId },
+  //               },
+  //               update: {
+  //                 $push: {
+  //                   participants: {
+  //                     userId: participant.userId,
+  //                     totalScore: participant.totalScore || 0,
+  //                     totalAccuracy: participant.totalAccuracy || 0,
+  //                     averageScore: participant.averageScore || 0,
+  //                     averageAccuracy: participant.averageAccuracy || 0,
+  //                     lessonResults: [],
+  //                   },
+  //                 },
+  //               },
+  //             },
+  //           });
+
+  //           if (Array.isArray(participant.lessonResults)) {
+  //             for (const result of participant.lessonResults) {
+  //               if (!challengeController.isValidObjectId(result.lessonId))
+  //                 continue;
+
+  //               result.lessonId = new mongoose.Types.ObjectId(result.lessonId);
+  //               result.submissionId = challengeController.isValidObjectId(
+  //                 result.submissionId
+  //               )
+  //                 ? new mongoose.Types.ObjectId(result.submissionId)
+  //                 : null;
+
+  //               bulkOperations.push({
+  //                 updateOne: {
+  //                   filter: {
+  //                     _id: challenge._id,
+  //                     "participants.userId": participant.userId,
+  //                   },
+  //                   update: {
+  //                     $addToSet: {
+  //                       "participants.$.lessonResults": result,
+  //                     },
+  //                   },
+  //                 },
+  //               });
+
+  //               bulkOperations.push({
+  //                 updateOne: {
+  //                   filter: {
+  //                     _id: challenge._id,
+  //                     "participants.userId": participant.userId,
+  //                     "participants.lessonResults.lessonId": result.lessonId,
+  //                   },
+  //                   update: {
+  //                     $set: {
+  //                       "participants.$.lessonResults.$[elem]": result,
+  //                     },
+  //                   },
+  //                   arrayFilters: [{ "elem.lessonId": result.lessonId }],
+  //                 },
+  //               });
+  //             }
+  //           }
+
+  //           const totalScorePerParticipant =
+  //             participant.lessonResults?.reduce(
+  //               (sum, result) => sum + (result.score || 0),
+  //               0
+  //             ) || 0;
+
+  //           participant.totalAccuracy =
+  //             participant.lessonResults?.reduce(
+  //               (sum, result) => sum + (result.accuracy || 0),
+  //               0
+  //             ) || 0;
+
+  //           participant.averageScore =
+  //             participant.lessonResults?.length > 0
+  //               ? totalScorePerParticipant / participant.lessonResults.length
+  //               : 0;
+
+  //           participant.averageAccuracy =
+  //             participant.lessonResults?.length > 0
+  //               ? participant.totalAccuracy / participant.lessonResults.length
+  //               : 0;
+
+  //           bulkOperations.push({
+  //             updateOne: {
+  //               filter: {
+  //                 _id: challenge._id,
+  //                 "participants.userId": participant.userId,
+  //               },
+  //               update: {
+  //                 $set: {
+  //                   "participants.$.totalScore": totalScorePerParticipant,
+  //                   "participants.$.totalAccuracy": participant.totalAccuracy,
+  //                   "participants.$.averageScore": participant.averageScore,
+  //                   "participants.$.averageAccuracy":
+  //                     participant.averageAccuracy,
+  //                 },
+  //               },
+  //             },
+  //           });
+
+  //           const totalScore = challenge.participants.reduce(
+  //             (sum, p) => sum + (p.totalScore || 0),
+  //             0
+  //           );
+
+  //           const totalAccuracy = challenge.participants.reduce(
+  //             (sum, p) => sum + (p.totalAccuracy || 0),
+  //             0
+  //           );
+  //           const totalSubmission = challenge.participants.reduce(
+  //             (sum, p) => sum + (p.lessonResults?.length || 0),
+  //             0
+  //           );
+
+  //           const averageScore =
+  //             totalSubmission > 0 ? totalScore / totalSubmission : 0;
+  //           const averageAccuracy =
+  //             totalSubmission > 0 ? totalAccuracy / totalSubmission : 0;
+
+  //           bulkOperations.push({
+  //             updateOne: {
+  //               filter: { _id: challenge._id },
+  //               update: {
+  //                 $set: {
+  //                   totalScore,
+  //                   totalAccuracy,
+  //                   totalSubmission,
+  //                   averageScore,
+  //                   averageAccuracy,
+  //                 },
+  //               },
+  //             },
+  //           });
+  //         }
+  //       }
+  //     }
+
+  //     if (bulkOperations.length > 0) {
+  //       await Challenge.bulkWrite(bulkOperations);
+  //     }
+
+  //     res.status(200).json({ message: "Challenges updated successfully!" });
+  //   } catch (error) {
+  //     console.error("Error updating challenges:", error);
+  //     res.status(500).json({ message: "Internal Server Error" });
+  //   }
+  // },
 
   deleteChallenge: async (req, res) => {
     try {
