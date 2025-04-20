@@ -4,7 +4,28 @@ const { findUserByEmailOrUsername, generateToken, generateHashedCode } = require
 require("dotenv").config();
 
 const authController = {
+  resetStreak: async(user) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
 
+    const lastSubmitDate = user.lastSubmitDate ? new Date(user.lastSubmitDate) : null;
+
+    const isSameDay = (d1, d2) =>
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate();
+
+    if (
+      lastSubmitDate &&
+      !isSameDay(lastSubmitDate, today) &&
+      !isSameDay(lastSubmitDate, yesterday) &&
+      user.streak !== 0
+    ) {
+      user.streak = 0;
+      await user.save();
+    }
+  },
     me: async (req, res) => {
         try {
             const userId = req.user?.id;
@@ -13,6 +34,7 @@ const authController = {
             const user = await User.findById(userId).select("-password -verificationCode -verificationExpires");
             if (!user) return res.status(404).json({ message: "User not found" });
 
+            await authController.resetStreak(user); 
             return res.status(200).json({ message: "User retrieved successfully", user });
         } catch (err) {
             console.error("Fetch User Error:", err);

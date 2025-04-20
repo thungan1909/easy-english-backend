@@ -14,6 +14,10 @@ router.post("/update-avatar", authMiddleware,
     userController.updateAvatar
 );
 
+router.patch("/update-streak", authMiddleware,
+    userController.updateStreak
+);
+
 router.get("/ids", userController.getUsersByIds);
 router.get("/:id", userController.getUserById);
 
