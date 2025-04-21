@@ -150,7 +150,6 @@ const userController = {
             message: "Streak updated successfully",
             currentStreak: user.streak,
         });
-    
     } catch (err) {
       console.error("Update Streak Error:", err);
       res.status(500).json({ message: "Internal Server Error" });
