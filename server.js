@@ -21,6 +21,7 @@ const corsOptions = {
     allowedHeaders: ["Content-Type", "Authorization"]
 };
 
+// mongo for deploy
 async function connectDB() {
   const mongod = await MongoMemoryServer.create();
   const uri = mongod.getUri();
@@ -29,7 +30,7 @@ async function connectDB() {
 }
 connectDB().catch((err) => console.error("❌ MongoDB Error:", err));
 
-// mongoose
+// mongoose local
 //     .connect(process.env.MONGO_URI)
 //     .then(() => console.log("✅ Connected to MongoDB"))
 //     .catch((err) => console.error("❌ MongoDB Connection Error:", err));
@@ -49,8 +50,9 @@ app.use("/v1/leaderboard", leaderboardRoutes);
 app.use("/v1/challenge", challengeRoutes);
 
 
-// Start the Server
+// Start the Server 
 const PORT = process.env.PORT || 5000;
+
 app.get("/", (req, res) => {
   res.send("✅ Easy English Backend is running!");
 });
