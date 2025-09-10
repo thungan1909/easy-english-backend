@@ -48,7 +48,13 @@ app.use("/v1/submission", submissionRoutes)
 app.use("/v1/leaderboard", leaderboardRoutes);
 app.use("/v1/challenge", challengeRoutes);
 
+
 // Start the Server
 const PORT = process.env.PORT || 5000;
+app.get("/", (req, res) => {
+  res.send("✅ Easy English Backend is running!");
+});
+
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
