@@ -3,6 +3,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const { MongoMemoryServer } = require("mongodb-memory-server");
+
 
 const app = express();
 const authRoutes = require("./routes/authRoutes");
@@ -19,10 +21,18 @@ const corsOptions = {
     allowedHeaders: ["Content-Type", "Authorization"]
 };
 
-mongoose
-    .connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ Connected to MongoDB"))
-    .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+async function connectDB() {
+  const mongod = await MongoMemoryServer.create();
+  const uri = mongod.getUri();
+  await mongoose.connect(uri);
+  console.log("✅ Connected to in-app MongoDB");
+}
+connectDB().catch((err) => console.error("❌ MongoDB Error:", err));
+
+// mongoose
+//     .connect(process.env.MONGO_URI)
+//     .then(() => console.log("✅ Connected to MongoDB"))
+//     .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
 // ✅ Middleware
 app.use(express.json()); // Parse JSON bodies
