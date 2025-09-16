@@ -15,9 +15,10 @@ const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const challengeRoutes = require("./routes/challengeRoutes");
 
 const corsOptions = {
-    origin: process.env.CLIENT_URL, // Allow frontend origin
+    // origin: process.env.CLIENT_URL, // Allow frontend origin
+    origin: "*",
     credentials: true, // Allow cookies in CORS requests
-    methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
 };
 
