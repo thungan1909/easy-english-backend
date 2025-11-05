@@ -15,14 +15,14 @@ const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const challengeRoutes = require("./routes/challengeRoutes");
 
 const corsOptions = {
-    // origin: process.env.CLIENT_URL, // Allow frontend origin
-    origin: "*",
-    credentials: true, // Allow cookies in CORS requests
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+  origin: process.env.CLIENT_URL, // Allow frontend origin
+  origin: "*",
+  credentials: true, // Allow cookies in CORS requests
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 };
 
-// mongo for deploy
+// Deploy: Mongo for deploy
 async function connectDB() {
   const mongod = await MongoMemoryServer.create();
   const uri = mongod.getUri();
@@ -31,10 +31,10 @@ async function connectDB() {
 }
 connectDB().catch((err) => console.error("❌ MongoDB Error:", err));
 
-// mongoose local
-//     .connect(process.env.MONGO_URI)
-//     .then(() => console.log("✅ Connected to MongoDB"))
-//     .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+//mongoose local
+// mongoose.connect(process.env.MONGO_URI)
+//   .then(() => console.log("✅ Connected to MongoDB"))
+//   .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
 // ✅ Middleware
 app.use(express.json()); // Parse JSON bodies
