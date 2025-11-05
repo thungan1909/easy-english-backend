@@ -22,21 +22,25 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"]
 };
 
-// Deploy: Mongo for deploy
-async function connectDB() {
-  const mongod = await MongoMemoryServer.create();
-  const uri = mongod.getUri();
-  await mongoose.connect(uri);
-  console.log("✅ Connected to in-app MongoDB");
-}
-connectDB().catch((err) => console.error("❌ MongoDB Error:", err));
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ Connected to MongoDB Atlas"))
+  .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+
+// Deploy: in-app MongoDB
+// async function connectDB() {
+//   const mongod = await MongoMemoryServer.create();
+//   const uri = mongod.getUri();
+//   await mongoose.connect(uri);
+//   console.log("✅ Connected to in-app MongoDB");
+// }
+// connectDB().catch((err) => console.error("❌ MongoDB Error:", err));
 
 //mongoose local
 // mongoose.connect(process.env.MONGO_URI)
 //   .then(() => console.log("✅ Connected to MongoDB"))
 //   .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
-// ✅ Middleware
+// // ✅ Middleware
 app.use(express.json()); // Parse JSON bodies
 app.use(cors(corsOptions)); // Secure CORS
 app.use(cookieParser()); // Parse cookies
@@ -50,13 +54,13 @@ app.use("/v1/submission", submissionRoutes)
 app.use("/v1/leaderboard", leaderboardRoutes);
 app.use("/v1/challenge", challengeRoutes);
 
+app.get("/", (req, res) => {
+  res.send("✅ Easy English Backend is running and connected to MongoDB Atlas!");
+});
 
 // Start the Server 
 const PORT = process.env.PORT || 5000;
 
-app.get("/", (req, res) => {
-  res.send("✅ Easy English Backend is running!");
-});
 
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
