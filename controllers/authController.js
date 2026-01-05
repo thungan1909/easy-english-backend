@@ -5,6 +5,7 @@ const {
   generateToken,
   generateHashedCode,
 } = require("../utils/generateToken");
+const { sendVerificationEmail } = require("../utils/mailer");
 require("dotenv").config();
 
 const authController = {
@@ -32,6 +33,7 @@ const authController = {
       await user.save();
     }
   },
+
   me: async (req, res) => {
     try {
       const userId = req.user?.id;
@@ -59,6 +61,7 @@ const authController = {
     try {
       const { email } = req.body;
       const exists = !!(await User.findOne({ email }));
+      console.log(email, "is existed:", exists);
       return res.status(200).json({ exists });
     } catch (err) {
       console.error("Check Email Error:", err);
@@ -162,15 +165,61 @@ const authController = {
           .json({ message: "User is already verified. Please sign in." });
 
       const { hashedCode, code, expiresAt } = await generateHashedCode();
-      console.log("Verification Code:", code); // TODO: Send via email
+      console.log("Verification Code (server log):", code, expiresAt); // for dev only; remove in prod
 
       user.verificationCode = hashedCode;
       user.verificationExpires = expiresAt;
       await user.save();
 
-      res
-        .status(200)
-        .json({ message: "Verification code sent to your email." });
+      try {
+        await sendVerificationEmail(email, code, expiresAt);
+      } catch (sendError) {
+        console.error("Failed to send verification email:", sendError);
+        // Option A: rollback saved code (optional)
+        user.verificationCode = undefined;
+        user.verificationExpires = undefined;
+        await user.save();
+        return res.status(500).json({ message: "Failed to send verification email." });
+      }
+
+      res.status(200).json({ message: "Verification code sent to your email." });
+
+    } catch (error) {
+      console.error("Verification Error:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  sendVerificationCode: async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ message: "User not found." });
+      if (user.isVerified)
+        return res
+          .status(400)
+          .json({ message: "User is already verified. Please sign in." });
+
+      const { hashedCode, code, expiresAt } = await generateHashedCode();
+      console.log("Verification Code (server log):", code, expiresAt); // for dev only; remove in prod
+
+      user.verificationCode = hashedCode;
+      user.verificationExpires = expiresAt;
+      await user.save();
+
+      try {
+        await sendVerificationEmail(email, code, expiresAt);
+      } catch (sendError) {
+        console.error("Failed to send verification email:", sendError);
+        // Option A: rollback saved code (optional)
+        user.verificationCode = undefined;
+        user.verificationExpires = undefined;
+        await user.save();
+        return res.status(500).json({ message: "Failed to send verification email." });
+      }
+
+      res.status(200).json({ message: "Verification code sent to your email." });
+
     } catch (error) {
       console.error("Verification Error:", error);
       res.status(500).json({ message: "Internal Server Error" });
