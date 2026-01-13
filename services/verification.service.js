@@ -43,9 +43,8 @@ async function verifyAccount({ email, verifyCode }) {
         throw new Error("NO_VERIFICATION_CODE");
     }
 
-
-    if (Date.now() - user.verificationExpires.getTime() < RESEND_COOLDOWN) {
-        throw new Error("CODE_EXPIRED")
+    if (Date.now() > user.verificationExpires) {
+        throw new Error("CODE_EXPIRED");
     }
 
     const isValid = await bcrypt.compare(verifyCode, user.verificationCode);
