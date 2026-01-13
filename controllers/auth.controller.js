@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const authService = require("../services/auth.service");
+const verificationService = require("../services/verification.service");
 
 const {
   findUserByEmailOrUsername,
@@ -141,65 +142,67 @@ const authController = {
   sendVerificationCode: async (req, res) => {
     try {
       const { email } = req.body;
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ message: "User not found." });
-
-      if (user.isVerified)
-        return res
-          .status(400)
-          .json({ message: "User is already verified. Please sign in." });
-
-
-      console.log(user.verificationExpires, Date.now() - user.verificationExpires.getTime())
-
-
-      if (user.verificationExpires && Date.now() - user.verificationExpires.getTime() < RESEND_COOLDOWN) {
-        return res.status(429).json({
-          message: "Please wait before requesting another code"
-        })
-      }
-
-      try {
-        await createAndSendVerification(user);
-      } catch {
-        return res.status(500).json({ message: "Failed to send verification email." });
-      }
+      await verificationService.sendVerificationCode(email);
 
       res.status(200).json({ message: "Verification code sent to your email." });
 
-    } catch (error) {
-      console.error("Verification Error:", error);
+    } catch (err) {
+
+      if (err.message === "USER_NOT_FOUND") {
+        return res.status(404).json({
+          message: "User not found.",
+        });
+      }
+
+      if (err.message === "ALREADY_VERIFIED") {
+        return res.status(400).json({
+          message: "User is already verified. Please sign in.",
+        });
+      }
+
+      if (err.message === "COOLDOWN_ACTIVE") {
+        return res.status(429).json({
+          message: "Please wait before requesting another code.",
+        });
+      }
+
+      console.error("Verification Error:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
   verifyAccount: async (req, res) => {
     try {
-      const { email, verifyCode } = req.body;
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ message: "User not found." });
-
-      if (Date.now() > user.verificationExpires)
-        return res
-          .status(400)
-          .json({ message: "Verification code has expired." });
-
-      if (!(await bcrypt.compare(verifyCode, user.verificationCode)))
-        return res.status(400).json({ message: "Invalid verification code." });
-
-      await User.updateOne(
-        { email },
-        {
-          $set: { isVerified: true },
-          $unset: { verificationCode: "", verificationExpires: "" },
-        }
-      );
-
+      await verificationService.verifyAccount(req.body);
       res.status(200).json({ message: "User verified successfully." });
-    } catch (error) {
-      console.error("Verification Error:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+    } catch (err) {
+      if (err.message === "USER_NOT_FOUND") {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      if (err.message === "ALREADY_VERIFIED") {
+        return res.status(400).json({ message: "User already verified." });
+      }
+
+      if (err.message === "CODE_EXPIRED") {
+        return res.status(400).json({
+          message: "Verification code has expired.",
+        });
+      }
+
+      if (
+        err.message === "INVALID_CODE" ||
+        err.message === "NO_VERIFICATION_CODE"
+      ) {
+        return res.status(400).json({
+          message: "Invalid verification code.",
+        });
+      }
+
+      console.error("Verify Account Error:", err);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
+
   },
 
   resetPassword: async (req, res) => {
