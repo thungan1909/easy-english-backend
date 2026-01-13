@@ -93,35 +93,14 @@ const authController = {
 
   loginUser: async (req, res) => {
     try {
-      const { username, password } = req.body;
-      if (!username || !password)
-        return res
-          .status(400)
-          .json({ message: "Username and password are required." });
 
-      const user = await findUserByEmailOrUsername(username);
-      if (!user || !(await bcrypt.compare(password, user.password)))
-        return res
-          .status(401)
-          .json({ message: "Invalid username or password." });
-
-      if (!user.isVerified)
-        return res
-          .status(403)
-          .json({ message: "Please verify your account first." });
-
-      const accessToken = generateToken(user, process.env.JWT_ACCESS_KEY, "1d");
-      const refreshToken = generateToken(
-        user,
-        process.env.JWT_REFRESH_KEY,
-        "365d"
-      );
+      const { user, accessToken, refreshToken } = await authService.login(req.body);
 
       res.cookie("refresh", refreshToken, {
         httpOnly: true,
-        secure: true,
-        path: "/",
+        secure: process.env.NODE_END === "production",
         sameSite: "strict",
+        path: "/"
       });
 
       return res.status(200).json({
@@ -134,12 +113,30 @@ const authController = {
         },
         access_token: accessToken,
       });
-    } catch (err) {
+    }
+    catch (err) {
+      if (err.message === "MISSING_CREDENTIALS") {
+        return res.status(400).json({
+          message: "Username and password are required.",
+        });
+      }
+
+      if (err.message === "INVALID_CREDENTIALS") {
+        return res.status(401).json({
+          message: "Invalid username or password.",
+        });
+      }
+
+      if (err.message === "NOT_VERIFIED") {
+        return res.status(403).json({
+          message: "Please verify your account first.",
+        });
+      }
+
       console.error("Login Error:", err);
-      res.status(500).json({ message: "Internal Server Error" });
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
-
 
   sendVerificationCode: async (req, res) => {
     try {
