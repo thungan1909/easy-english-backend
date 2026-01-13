@@ -7,7 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 async function sendVerificationEmail(to, code, expiresAt) {
 
-
+  console.log("SEND EMAIL to", to, " with code", code)
   if (!process.env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not set")
   }

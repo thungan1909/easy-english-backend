@@ -15,7 +15,7 @@ const createAndSendVerification = async (user) => {
     try {
         await sendVerificationEmail(user.email, code, expiresAt);
     } catch (err) {
-
+        console.log("err", err)
         //rollback
         user.verificationCode = undefined;
         user.verificationExpires = undefined;
