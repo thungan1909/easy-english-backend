@@ -1,9 +1,9 @@
 const User = require("../models/User");
-const bcrypt = require("bcryptjs");
 const authService = require("../services/auth.service");
 const passwordService = require("../services/password.service");
 
 const verificationService = require("../services/verification.service");
+const handleError = require("../utils/handleError");
 
 require("dotenv").config();
 
@@ -76,14 +76,8 @@ const authController = {
         userId: user._id,
       })
     } catch (err) {
-      if (err.message === "USER_EXISTS") {
-        return res
-          .status(400)
-          .json({ message: "Username or email already exists." });
-      }
-      res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
-
   },
 
   loginUser: async (req, res) => {
@@ -110,26 +104,7 @@ const authController = {
       });
     }
     catch (err) {
-      if (err.message === "MISSING_CREDENTIALS") {
-        return res.status(400).json({
-          message: "Username and password are required.",
-        });
-      }
-
-      if (err.message === "INVALID_CREDENTIALS") {
-        return res.status(401).json({
-          message: "Invalid username or password.",
-        });
-      }
-
-      if (err.message === "NOT_VERIFIED") {
-        return res.status(403).json({
-          message: "Please verify your account first.",
-        });
-      }
-
-      console.error("Login Error:", err);
-      return res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
   },
 
@@ -141,27 +116,7 @@ const authController = {
       res.status(200).json({ message: "Verification code sent to your email." });
 
     } catch (err) {
-
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({
-          message: "User not found.",
-        });
-      }
-
-      if (err.message === "ALREADY_VERIFIED") {
-        return res.status(400).json({
-          message: "User is already verified. Please sign in.",
-        });
-      }
-
-      if (err.message === "COOLDOWN_ACTIVE") {
-        return res.status(429).json({
-          message: "Please wait before requesting another code.",
-        });
-      }
-
-      console.error("Verification Error:", err);
-      res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
   },
 
@@ -170,33 +125,8 @@ const authController = {
       await verificationService.verifyAccount(req.body);
       res.status(200).json({ message: "User verified successfully." });
     } catch (err) {
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({ message: "User not found." });
-      }
-
-      if (err.message === "ALREADY_VERIFIED") {
-        return res.status(400).json({ message: "User already verified." });
-      }
-
-      if (err.message === "CODE_EXPIRED") {
-        return res.status(400).json({
-          message: "Verification code has expired.",
-        });
-      }
-
-      if (
-        err.message === "INVALID_CODE" ||
-        err.message === "NO_VERIFICATION_CODE"
-      ) {
-        return res.status(400).json({
-          message: "Invalid verification code.",
-        });
-      }
-
-      console.error("Verify Account Error:", err);
-      return res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
-
   },
 
   sendResetPasswordCode: async (req, res) => {
@@ -206,14 +136,7 @@ const authController = {
         .status(200)
         .json({ message: "Reset password code has been sent to your email." });
     } catch (err) {
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({
-          message: "User not found.",
-        });
-      }
-
-      console.error("Error generating reset password code:", err);
-      res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
   },
 
@@ -224,26 +147,7 @@ const authController = {
 
       res.status(200).json({ message: "Reset code verified successfully." });
     } catch (err) {
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({
-          message: "User not found.",
-        });
-      }
-
-      if (err.message === "CODE_EXPIRED") {
-        return res.status(404).json({
-          message: "Invalid or expired reset code.",
-        });
-      }
-
-      if (err.message === "INVALID_CODE") {
-        return res.status(404).json({
-          message: "Invalid reset code.",
-        });
-      }
-
-      console.error("Verify Reset Code Error:", err);
-      res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
   },
 
@@ -253,20 +157,7 @@ const authController = {
 
       res.status(200).json({ message: "Password reset successfully." });
     } catch (err) {
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({
-          message: "User not found.",
-        });
-      }
-
-      if (err.message === "RESET_NOT_CONFIRMED") {
-        return res.status(400).json({
-          message: "Reset code not confirmed."
-        });
-      }
-
-      console.error("Reset password Error:", err);
-      res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
   },
 
@@ -278,19 +169,7 @@ const authController = {
 
       res.status(200).json({ message: "Password changed successfully." });
     } catch (err) {
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({
-          message: "User not found.",
-        });
-      }
-
-      if (err.message === "INVALID_PASSWORD") {
-        return res.status(400).json({
-          message: "Current Password is Incorrect."
-        });
-      }
-      console.error("Change Password Error:", err);
-      res.status(500).json({ message: "Internal Server Error" });
+      return handleError(res, err);
     }
   },
 };

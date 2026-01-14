@@ -53,7 +53,7 @@ async function changePassword(userId, currentPassword, newPassword) {
     if (!user) throw new Error("USER_NOT_FOUND");
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) throw new Error("INVALID_PASSWORD");
+    if (!isMatch) throw new Error("INCORRECT_PASSWORD");
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();

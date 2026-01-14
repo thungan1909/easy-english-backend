@@ -36,7 +36,7 @@ async function verifyAccount({ email, verifyCode }) {
     }
 
     if (!user.verificationCode || !user.verificationExpires) {
-        throw new Error("NO_VERIFICATION_CODE");
+        throw new Error("INVALID_CODE");
     }
 
     if (Date.now() > user.verificationExpires) {
