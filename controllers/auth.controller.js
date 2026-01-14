@@ -4,14 +4,10 @@ const authService = require("../services/auth.service");
 const verificationService = require("../services/verification.service");
 
 const {
-  findUserByEmailOrUsername,
-  generateToken,
   generateHashedCode,
 } = require("../utils/generateToken");
-const { createAndSendVerification } = require("../utils/verification");
 require("dotenv").config();
 
-const RESEND_COOLDOWN = 60 * 1000; // 1 minute
 
 const authController = {
   resetStreak: async (user) => {

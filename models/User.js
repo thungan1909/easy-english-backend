@@ -36,7 +36,8 @@ const userSchema = new mongoose.Schema(
     // AUTHENTICATION
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String },
-    verificationExpires: { type: Date },
+    verificationExpires: { type: Date }, // code validity (10 min)
+    lastVerificationSent: { type: Date }, // resend cooldown (1 min)
     resetCode: { type: String },
     resetCodeExpires: { type: Date },
     isConfirmResetCode: { type: Boolean, default: false },

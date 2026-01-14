@@ -15,7 +15,7 @@ async function sendVerificationCode(email) {
         throw new Error("ALREADY_VERIFIED");
     }
 
-    if (user.verificationExpires && Date.now() - user.verificationExpires.getTime() < RESEND_COOLDOWN) {
+    if (user.lastVerificationSent && Date.now() - user.lastVerificationSent.getTime() < RESEND_COOLDOWN) {
         throw new Error("COOLDOWN_ACTIVE")
     }
 
