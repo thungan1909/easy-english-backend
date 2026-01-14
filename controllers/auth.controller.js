@@ -1,11 +1,10 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const authService = require("../services/auth.service");
+const passwordService = require("../services/password.service");
+
 const verificationService = require("../services/verification.service");
 
-const {
-  generateHashedCode,
-} = require("../utils/generateToken");
 require("dotenv").config();
 
 const authController = {
@@ -94,7 +93,7 @@ const authController = {
 
       res.cookie("refresh", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_END === "production",
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/"
       });
@@ -200,84 +199,73 @@ const authController = {
 
   },
 
-  resetPassword: async (req, res) => {
-    try {
-      const { email, password } = req.body;
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ message: "User not found." });
-
-      if (!user.isConfirmResetCode)
-        return res
-          .status(400)
-          .json({ message: "Reset code has not been confirmed." });
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      await User.updateOne(
-        { email },
-        {
-          $set: { password: hashedPassword, isConfirmResetCode: false },
-          $unset: { resetCode: "", resetCodeExpires: "" },
-        }
-      );
-
-      res.status(200).json({ message: "Password reset successfully." });
-    } catch (error) {
-      console.error("Reset password Error:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-    }
-  },
-
   sendResetPasswordCode: async (req, res) => {
     try {
-      const { email } = req.body;
-
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ message: "User not found." });
-
-      const {
-        hashedCode: hashedResetCode,
-        code,
-        expiresAt,
-      } = await generateHashedCode();
-      console.log(`Reset password code generated for ${email}`, code);
-
-      user.resetCode = hashedResetCode;
-      user.resetCodeExpires = expiresAt;
-      await user.save();
-
+      await passwordService.sendResetPasswordCode(req.body)
       res
         .status(200)
         .json({ message: "Reset password code has been sent to your email." });
-    } catch (error) {
-      console.error("Error generating reset password code:", error);
+    } catch (err) {
+      if (err.message === "USER_NOT_FOUND") {
+        return res.status(404).json({
+          message: "User not found.",
+        });
+      }
+
+      console.error("Error generating reset password code:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
   verifyResetPasswordCode: async (req, res) => {
     try {
-      const { email, resetCode } = req.body;
-      const user = await User.findOne({ email });
 
-      if (!user) return res.status(404).json({ message: "User not found." });
-
-      if (!user.resetCode || user.resetCodeExpires < Date.now()) {
-        return res
-          .status(400)
-          .json({ message: "Invalid or expired reset code." });
-      }
-
-      const isCodeValid = await bcrypt.compare(resetCode, user.resetCode);
-      if (!isCodeValid)
-        return res.status(400).json({ message: "Invalid reset code." });
-
-      user.isConfirmResetCode = true;
-      await user.save();
+      await passwordService.verifyResetPasswordCode(req.body)
 
       res.status(200).json({ message: "Reset code verified successfully." });
-    } catch (error) {
-      console.error("Verify Reset Code Error:", error);
+    } catch (err) {
+      if (err.message === "USER_NOT_FOUND") {
+        return res.status(404).json({
+          message: "User not found.",
+        });
+      }
+
+      if (err.message === "CODE_EXPIRED") {
+        return res.status(404).json({
+          message: "Invalid or expired reset code.",
+        });
+      }
+
+      if (err.message === "INVALID_CODE") {
+        return res.status(404).json({
+          message: "Invalid reset code.",
+        });
+      }
+
+      console.error("Verify Reset Code Error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  resetPassword: async (req, res) => {
+    try {
+      await passwordService.resetPassword(req.body);
+
+      res.status(200).json({ message: "Password reset successfully." });
+    } catch (err) {
+      if (err.message === "USER_NOT_FOUND") {
+        return res.status(404).json({
+          message: "User not found.",
+        });
+      }
+
+      if (err.message === "RESET_NOT_CONFIRMED") {
+        return res.status(400).json({
+          message: "Reset code not confirmed."
+        });
+      }
+
+      console.error("Reset password Error:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -286,27 +274,22 @@ const authController = {
     try {
       const userId = req.user?.id;
       const { currentPassword, newPassword } = req.body;
-
-      if (!userId || !currentPassword || !newPassword) {
-        return res.status(400).json({ message: "Missing required fields." });
-      }
-
-      const user = await User.findById(userId);
-      if (!user) return res.status(404).json({ message: "User not found." });
-
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch)
-        return res
-          .status(401)
-          .json({ message: "Current password is incorrect." });
-
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      user.password = hashedPassword;
-      await user.save();
+      await passwordService.changePassword(userId, currentPassword, newPassword);
 
       res.status(200).json({ message: "Password changed successfully." });
-    } catch (error) {
-      console.error("Change Password Error:", error);
+    } catch (err) {
+      if (err.message === "USER_NOT_FOUND") {
+        return res.status(404).json({
+          message: "User not found.",
+        });
+      }
+
+      if (err.message === "INVALID_PASSWORD") {
+        return res.status(400).json({
+          message: "Current Password is Incorrect."
+        });
+      }
+      console.error("Change Password Error:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
