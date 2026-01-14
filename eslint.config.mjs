@@ -19,6 +19,7 @@ export default defineConfig([
       "no-underscore-dangle": "off",
       "consistent-return": "off",
       "no-unused-vars": ["warn", { argsIgnorePattern: "req|res|next" }],
+      "no-multiple-empty-lines": ["error", { max: 1, maxEOF: 0, maxBOF: 0 }]
     },
   },
 ]);

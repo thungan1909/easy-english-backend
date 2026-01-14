@@ -8,7 +8,6 @@ const {
 } = require("../utils/generateToken");
 require("dotenv").config();
 
-
 const authController = {
   resetStreak: async (user) => {
     const today = new Date();

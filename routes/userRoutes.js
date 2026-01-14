@@ -21,5 +21,4 @@ router.patch("/update-streak", authMiddleware,
 router.get("/ids", userController.getUsersByIds);
 router.get("/:id", userController.getUserById);
 
-
 module.exports = router;

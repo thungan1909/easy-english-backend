@@ -5,7 +5,6 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { MongoMemoryServer } = require("mongodb-memory-server");
 
-
 const app = express();
 const authRoutes = require("./routes/authRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
@@ -45,7 +44,6 @@ app.use(express.json()); // Parse JSON bodies
 app.use(cors(corsOptions)); // Secure CORS
 app.use(cookieParser()); // Parse cookies
 
-
 //Routes
 app.use("/v1/auth", authRoutes)
 app.use("/v1/lesson", lessonRoutes)
@@ -58,8 +56,7 @@ app.get("/", (req, res) => {
   res.send("✅ Easy English Backend is running and connected to MongoDB Atlas!");
 });
 
-// Start the Server 
+// Start the Server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-

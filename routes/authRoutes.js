@@ -22,4 +22,3 @@ router.post("/password/change", authMiddleware, authController.changePassword)
 router.get("/me", authMiddleware, authController.me)
 
 module.exports = router;
-

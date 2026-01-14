@@ -4,7 +4,6 @@ const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-
 async function sendVerificationEmail(to, code, expiresAt) {
 
   console.log("SEND EMAIL to", to, " with code", code)
@@ -13,7 +12,6 @@ async function sendVerificationEmail(to, code, expiresAt) {
   }
 
   const expiresUTC = expiresAt ? new Date(expiresAt).toUTCString() : "";
-
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height:1.4; color:#111;">

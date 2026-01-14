@@ -34,7 +34,6 @@ async function login({ username, password }) {
         throw new Error("INVALID_CREDENTIALS");
     }
 
-
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
         throw new Error("INVALID_CREDENTIALS");

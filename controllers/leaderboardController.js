@@ -1,7 +1,6 @@
 const User = require("../models/User");
 const moment = require("moment");
 
-
 const leaderboardController = {
     getTopWeeklyRecords: async (req, res) => {
         try {
@@ -30,7 +29,6 @@ const leaderboardController = {
             ];
 
             const topRecords = await User.aggregate(pipeline);
-
 
             res.status(200).json(topRecords);
         } catch (error) {

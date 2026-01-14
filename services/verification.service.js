@@ -19,14 +19,10 @@ async function sendVerificationCode(email) {
         throw new Error("COOLDOWN_ACTIVE")
     }
 
-
     await createAndSendVerification(user);
 
     return true;
-
 }
-
-
 
 async function verifyAccount({ email, verifyCode }) {
     const user = await User.findOne({ email });
@@ -65,9 +61,6 @@ async function verifyAccount({ email, verifyCode }) {
         });
 
     return true;
-
 }
 
-
 module.exports = { sendVerificationCode, verifyAccount }
-
