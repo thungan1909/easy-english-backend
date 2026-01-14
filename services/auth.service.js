@@ -2,12 +2,13 @@ const User = require("../models/User");
 const { findUserByEmailOrUsername, generateToken } = require("../utils/generateToken");
 const { createAndSendVerification } = require("../utils/verification");
 const bcrypt = require("bcryptjs");
+const ERRORS = require("../constants/errorCodes");
 
 async function register({ username, email, password }) {
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
 
     if (existingUser) {
-        throw new Error("USER_EXISTS");
+        throw new Error(ERRORS.USER_EXISTS);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -26,21 +27,21 @@ async function register({ username, email, password }) {
 
 async function login({ username, password }) {
     if (!username || !password) {
-        throw new Error("MISSING_CREDENTIALS")
+        throw new Error(ERRORS.MISSING_CREDENTIALS)
     }
 
     const user = await findUserByEmailOrUsername(username);
     if (!user) {
-        throw new Error("INVALID_CREDENTIALS");
+        throw new Error(ERRORS.INVALID_CREDENTIALS);
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-        throw new Error("INVALID_CREDENTIALS");
+        throw new Error(ERRORS.INVALID_CREDENTIALS);
     }
 
     if (!user.isVerified) {
-        throw new Error("NOT_VERIFIED");
+        throw new Error(ERRORS.NOT_VERIFIED);
     }
 
     const accessToken = generateToken(user, process.env.JWT_ACCESS_KEY, "1d");
