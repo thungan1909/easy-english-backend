@@ -28,21 +28,6 @@ const authController = {
       return handleError(res, err);
     }
   },
-  //TODO: Will remove this function later
-  checkExistEmail: async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: "Email is required." });
-      }
-      //Backend responds the same way for all emails
-      // const exists = await User.exists({ email });
-
-      return res.status(200).json({ exists: true });
-    } catch (err) {
-      return handleError(res, err);
-    }
-  },
 
   registerUser: async (req, res) => {
     try {
@@ -86,7 +71,9 @@ const authController = {
 
   sendVerificationCode: async (req, res) => {
     try {
-      await verificationService.sendVerificationCode(req.body);
+      const { email } = req.body;
+
+      await verificationService.sendVerificationCode(email);
       res.status(200).json({ message: "Verification code sent to your email." });
     } catch (err) {
       return handleError(res, err);
@@ -104,7 +91,9 @@ const authController = {
 
   sendResetPasswordCode: async (req, res) => {
     try {
-      await passwordService.sendResetPasswordCode(req.body)
+      const { email } = req.body;
+
+      await passwordService.sendResetPasswordCode(email)
       res
         .status(200)
         .json({ message: "Reset password code has been sent to your email." });

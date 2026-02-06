@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const ERRORS = require("../constants/errorCodes");
 
 async function sendResetPasswordCode(email) {
+
     const user = await User.findOne({ email });
     if (!user) {
         throw new Error(ERRORS.USER_NOT_FOUND);
